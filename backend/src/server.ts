@@ -186,6 +186,107 @@ app.post('/api/generate-terrain', async (req, res) => {
   }
 });
 
+import axios from 'axios';
+
+// 5. Integração Meteorológica em Tempo Real (Open-Meteo)
+async function fetchWeather(lat: number, lng: number) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=precipitation,relativehumidity_2m&forecast_days=1&timezone=auto`;
+  const response = await axios.get(url);
+  return response.data;
+}
+
+app.get('/api/weather/:lat/:lng', async (req, res) => {
+  try {
+    const { lat, lng } = req.params;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'Latitude e Longitude são obrigatórias.' });
+    }
+
+    const weatherData = await fetchWeather(parseFloat(lat), parseFloat(lng));
+    
+    // Pegar as próximas 6 horas a partir de agora
+    const currentHourIndex = new Date().getHours();
+    // Prevenção: Se faltar menos de 6h para o fim do dia, pega o resto que tiver (API de 1 dia)
+    const endIndex = Math.min(currentHourIndex + 6, weatherData.hourly.time.length);
+    
+    const hourlyRain = weatherData.hourly.precipitation.slice(currentHourIndex, endIndex);
+    const hourlyHumidity = weatherData.hourly.relativehumidity_2m.slice(currentHourIndex, endIndex);
+    
+    const accumulatedRain6h = hourlyRain.reduce((acc: number, curr: number) => acc + curr, 0);
+    const avgHumidity6h = hourlyHumidity.reduce((acc: number, curr: number) => acc + curr, 0) / hourlyHumidity.length;
+
+    res.json({
+      hourlyRain,
+      accumulatedRain6h: Number(accumulatedRain6h.toFixed(2)),
+      avgHumidity6h: Math.round(avgHumidity6h)
+    });
+
+  } catch (error) {
+    console.error("Weather Fetch Error:", error);
+    res.status(500).json({ error: 'Erro ao buscar previsão meteorológica' });
+  }
+});
+
+// 6. Sistema de Telemetria de Sensores (Histórico em Memória)
+type SensorReading = {
+  sensorId: string
+  timestamp: number
+  slope: number
+  moisture: number
+  rain: number
+  vibration: number
+  risk: number
+}
+
+const sensorHistory: Record<string, SensorReading[]> = {}
+
+app.post('/api/sensor-data', (req, res) => {
+  try {
+    const { sensorId, slope, moisture, rain, vibration, risk } = req.body;
+
+    if (!sensorId) {
+      return res.status(400).json({ error: 'sensorId é obrigatório' });
+    }
+
+    const reading: SensorReading = {
+      sensorId,
+      timestamp: Date.now(),
+      slope,
+      moisture,
+      rain,
+      vibration,
+      risk
+    };
+
+    if (!sensorHistory[sensorId]) {
+      sensorHistory[sensorId] = [];
+    }
+
+    sensorHistory[sensorId].push(reading);
+
+    // Manter limite máximo de 500 leituras por sensor
+    if (sensorHistory[sensorId].length > 500) {
+      // Remove o mais antigo (início do array)
+      sensorHistory[sensorId].shift();
+    }
+
+    res.status(200).json({ success: true, message: 'Telemetria registrada' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao registrar telemetria' });
+  }
+});
+
+app.get('/api/sensor-history/:sensorId', (req, res) => {
+  try {
+    const { sensorId } = req.params;
+    const history = sensorHistory[sensorId] || [];
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar histórico do sensor' });
+  }
+});
+
 // WebSocket Connection
 io.on('connection', (socket) => {
   console.log('[Socket] Client connected:', socket.id);

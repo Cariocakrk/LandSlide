@@ -10,6 +10,7 @@ export type Sensor = {
   rainVolume: number;       // mm
   vibration: number;        // Richter mm/s
   localRisk: number;        // 0-100 severity
+  futureRisk: number;       // 0-100 deterministic projected severity (6h)
 };
 
 type TerrainState = {
@@ -23,12 +24,16 @@ type TerrainState = {
   sensors: Sensor[];
   globalRisk: number;
 
+  telemetryInterval: NodeJS.Timeout | null;
+  weatherInterval: NodeJS.Timeout | null;
+
   setTerrainData: (data: any, slopeData: any) => void;
   setSensors: (sensors: Sensor[]) => void;
   updateSensor: (id: string, partial: Partial<Sensor>) => void;
   updateAllSensors: (partial: Partial<Sensor>) => void;
   recalculateGlobalRisk: () => void;
   clearTerrain: () => void;
+  fetchAndApplyWeather: () => Promise<void>;
 };
 
 // Calculate individual risk identical to the Backend logic
@@ -41,6 +46,16 @@ const calcLocalRisk = (sensor: Sensor) => {
   return Math.min(Math.round(risk), 100);
 };
 
+// Calculate projected future risk (6h) based on real weather incoming data
+const calculateFutureRisk = (sensor: Sensor, accumulatedRain6h: number) => {
+  const rainImpact = accumulatedRain6h * 0.5; // High weight for incoming weather events
+  const moistureImpact = sensor.soilMoisture * 0.3; // Existing moisture compounds heavily
+  const slopeImpact = Math.min(sensor.terrainInclination / 45, 1) * 20; // Structural vulnerability constant
+
+  const totalFutureRisk = rainImpact + moistureImpact + slopeImpact;
+  return Math.max(sensor.localRisk, Math.min(Math.round(totalFutureRisk), 100)); // Future risk should rarely be significantly beneath current instantaneous baseline during rain
+};
+
 export const useTerrainStore = create<TerrainState>((set, get) => ({
   location: null,
   latitude: null,
@@ -51,6 +66,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   slopeData: null,
   sensors: [],
   globalRisk: 0,
+  telemetryInterval: null,
+  weatherInterval: null,
 
   setTerrainData: (data, slopeData) => {
     set({
@@ -64,9 +81,77 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     });
   },
 
+  fetchAndApplyWeather: async () => {
+    const { latitude, longitude, sensors } = get();
+    if (!latitude || !longitude || sensors.length === 0) return;
+
+    try {
+      const resp = await fetch(`http://localhost:3001/api/weather/${latitude}/${longitude}`);
+      const weatherData = await resp.json();
+
+      if (weatherData && weatherData.accumulatedRain6h !== undefined) {
+         set((state) => {
+            const upSensors = state.sensors.map(s => {
+               // Combine incoming weather to physical sensors logic
+               const newRain = weatherData.accumulatedRain6h;
+               // Average out ambient humidity affecting ground moisture slightly
+               const newMoisture = Math.min(s.soilMoisture + (weatherData.avgHumidity6h * 0.2), 100);
+
+               const updated = { 
+                 ...s, 
+                 rainVolume: newRain, 
+                 soilMoisture: newMoisture 
+               };
+
+               updated.localRisk = calcLocalRisk(updated);
+               updated.futureRisk = calculateFutureRisk(updated, newRain);
+               return updated;
+            });
+            return { sensors: upSensors };
+         });
+         get().recalculateGlobalRisk();
+      }
+    } catch(e) {
+      console.error("Failed to fetch meteorology", e);
+    }
+  },
+
   setSensors: (sensors: Sensor[]) => {
+    // Limpar intervals antigos se existirem
+    const currentTelemetry = get().telemetryInterval;
+    const currentWeather = get().weatherInterval;
+    if (currentTelemetry) clearInterval(currentTelemetry);
+    if (currentWeather) clearInterval(currentWeather);
+
     set({ sensors });
     get().recalculateGlobalRisk();
+
+    // Iniciar novo Telemetry Poller
+    const newTelemetry = setInterval(() => {
+       const currentSensors = get().sensors;
+       currentSensors.forEach(sensor => {
+          fetch('http://localhost:3001/api/sensor-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sensorId: sensor.id,
+              slope: sensor.terrainInclination,
+              moisture: sensor.soilMoisture,
+              rain: sensor.rainVolume,
+              vibration: sensor.vibration,
+              risk: sensor.localRisk
+            })
+          }).catch(err => console.error("Telemetry error:", err));
+       });
+    }, 10000);
+
+    // Weather Fetch (Immediately and then every 30 minutes)
+    get().fetchAndApplyWeather();
+    const newWeatherInterval = setInterval(() => {
+       get().fetchAndApplyWeather();
+    }, 1800000); // 30 minutes
+
+    set({ telemetryInterval: newTelemetry, weatherInterval: newWeatherInterval });
   },
 
   updateSensor: (id, partial) => {
@@ -75,6 +160,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
         if (s.id !== id) return s;
         const updated = { ...s, ...partial };
         updated.localRisk = calcLocalRisk(updated);
+        // maintain projected risk recalculation
+        updated.futureRisk = calculateFutureRisk(updated, updated.rainVolume);
         return updated;
       });
       return { sensors: updatedSensors };
@@ -87,6 +174,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       const updatedSensors = state.sensors.map((s) => {
         const updated = { ...s, ...partial };
         updated.localRisk = calcLocalRisk(updated);
+        updated.futureRisk = calculateFutureRisk(updated, updated.rainVolume);
         return updated;
       });
       return { sensors: updatedSensors };
@@ -102,9 +190,17 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     });
   },
 
-  clearTerrain: () => set({ 
-    location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0 
-  })
+  clearTerrain: () => {
+     const tInt = get().telemetryInterval;
+     const wInt = get().weatherInterval;
+     if (tInt) clearInterval(tInt);
+     if (wInt) clearInterval(wInt);
+     
+     set({ 
+       location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0, 
+       telemetryInterval: null, weatherInterval: null 
+     });
+  }
 }));
 
 // Algorithm to place sensors prioritizing steep slopes or highest altitude variations
@@ -176,7 +272,8 @@ export function generateOptimalSensors(matrix: number[][], slopeMap: any, maxSen
         terrainInclination: cand.slope,
         rainVolume: 0,
         vibration: 0,
-        localRisk: 0 
+        localRisk: 0,
+        futureRisk: 0 // Will auto calculate upon first weather polling
      };
      
      initSensor.localRisk = calcLocalRisk(initSensor);
