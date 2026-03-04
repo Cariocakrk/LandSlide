@@ -40,6 +40,10 @@ export default function Dashboard() {
   }, []);
 
   const displayRisk = sensors.length > 0 ? globalRisk : (current?.risk || 0);
+
+  const displayFutureRisk = sensors.length > 0
+       ? Math.round(sensors.reduce((acc, s) => acc + (s.futureRisk || 0), 0) / sensors.length)
+       : displayRisk; // Fallback para o atual se n\u00e3o tiver proje\u00e7\u00e3o
   
   const displayMoisture = sensors.length > 0 
        ? Math.round(sensors.reduce((acc, s) => acc + s.soilMoisture, 0) / sensors.length) 
@@ -136,11 +140,33 @@ export default function Dashboard() {
         </div>
 
         {/* Sensor Metrics Grid */}
-        <div className="md:col-span-2 grid grid-cols-2 gap-4">
-          <MetricCard title="Umidade Média" value={displayMoisture} unit="%" icon={Droplets} color="text-blue-400" />
+        <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+          <MetricCard title="Umidade (Atual)" value={displayMoisture} unit="%" icon={Droplets} color="text-blue-400" />
+          <MetricCard title="Chuva Acum. 6h" value={displayRain} unit="mm" icon={CloudRain} color="text-purple-400" />
           <MetricCard title="Inclinação Média" value={displayInclination} unit="°" icon={Mountain} color="text-orange-400" />
-          <MetricCard title="Vol. de Chuva" value={displayRain} unit="mm" icon={CloudRain} color="text-purple-400" />
-          <MetricCard title="Vibração" value={displayVibration} unit="Hz" icon={Activity} color="text-red-400" />
+          <MetricCard title="Vibração Solo" value={displayVibration} unit="Hz" icon={Activity} color="text-red-400" />
+          
+          {/* Projeção (Future Risk) */}
+          <div className={`col-span-2 border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-6 flex flex-col justify-between hover:bg-white/5 transition-colors relative overflow-hidden`}>
+            {/* Gradiente de fundo sutil */}
+            <div className={`absolute inset-0 opacity-10 ${getStatusColorHex(getDynamicStatusColor(displayFutureRisk))}`} />
+            
+            <div className="flex items-center justify-between mb-2 relative z-10">
+              <span className="font-semibold text-gray-300">Projeção Determinística (Próximas 6h)</span>
+              <div className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColorHex(getDynamicStatusColor(displayFutureRisk))}`}>
+                {getDynamicStatusColor(displayFutureRisk)}
+              </div>
+            </div>
+            
+            <div className="relative z-10 flex items-end gap-4">
+              <div className="text-5xl font-extrabold text-white tracking-tight">
+                {displayFutureRisk}
+              </div>
+              <div className="mb-2 text-sm text-gray-400 flex items-center gap-1">
+                vs <span className="font-bold text-white">{displayRisk}</span> atual
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
