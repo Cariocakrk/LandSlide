@@ -14,6 +14,11 @@ export default function Historico() {
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:3001/api/history?page=${p}`);
+      if (!res.ok) {
+         console.warn("fetchHistory error:", await res.text());
+         setLogs([]);
+         return;
+      }
       const data = await res.json();
       if (data && Array.isArray(data.data)) {
         setLogs(data.data);

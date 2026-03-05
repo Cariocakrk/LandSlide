@@ -10,6 +10,11 @@ export default function DefesaCivil() {
   const fetchProtocols = async () => {
     try {
        const res = await fetch('http://localhost:3001/api/defense-protocols');
+       if (!res.ok) {
+          console.warn("fetchProtocols error:", await res.text());
+          setProtocols([]);
+          return;
+       }
        const data = await res.json();
        if (Array.isArray(data)) {
          setProtocols(data);

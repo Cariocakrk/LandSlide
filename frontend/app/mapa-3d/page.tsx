@@ -2,12 +2,14 @@
 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, Html } from '@react-three/drei';
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, Suspense } from 'react';
 import * as THREE from 'three';
 import { socket } from '@/lib/socket';
 import { Map, AlertTriangle, MapPin } from 'lucide-react';
 import { useTerrainStore } from '@/store/terrainStore';
 import { TerrainMesh } from '@/components/3d/TerrainMesh';
+import { FloodRiskModule } from '@/components/3d/FloodRiskModule';
+import WeatherWidget from '@/components/WeatherWidget';
 
 function Terrain({ riskColor }: { riskColor: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -127,13 +129,11 @@ export default function Mapa3D() {
   const [isRaining, setIsRaining] = useState(false);
 
   useEffect(() => {
-    // Dynamic Global Risk Color
     if (globalRisk > 70) setColorHex("#9b2c2c");
     else if (globalRisk > 40) setColorHex("#f97316");
     else if (globalRisk > 15) setColorHex("#eab308");
     else setColorHex("#10b981");
 
-    // Dynamic Rain System
     const hasRain = sensors.some(s => s.rainVolume > 30);
     setIsRaining(hasRain);
   }, [globalRisk, sensors]);
@@ -169,6 +169,8 @@ export default function Mapa3D() {
         </div>
       </div>
 
+      <WeatherWidget />
+
       <Canvas shadows camera={{ position: [15, 15, 15], fov: 50 }}>
         <color attach="background" args={['#050505']} />
         <ambientLight intensity={0.1} />
@@ -176,7 +178,10 @@ export default function Mapa3D() {
         <PointLight color={colorHex} />
         
         {elevationMatrix ? (
-            <TerrainMesh matrix={elevationMatrix} minElevation={minElevation} maxElevation={maxElevation} autoRotate={true} />
+            <Suspense fallback={null}>
+               <TerrainMesh matrix={elevationMatrix} minElevation={minElevation} maxElevation={maxElevation} autoRotate={true} />
+               <FloodRiskModule />
+            </Suspense>
         ) : (
             <Terrain riskColor={colorHex} />
         )}

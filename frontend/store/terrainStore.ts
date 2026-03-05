@@ -1,12 +1,23 @@
 import { create } from 'zustand';
 
+export type FloodSensor = {
+  id: string;
+  riverName: string;
+  lat: number;
+  lng: number;
+  distanceToCenter: number;
+  nivelAtual: number;
+  localRisk: number;
+  waterwayId: string;
+};
+
 export type Sensor = {
   id: string;
   position: { x: number; y: number; z: number };
   gridX: number;
   gridY: number;
   soilMoisture: number;     // 0-100%
-  terrainInclination: number; // degrees
+  terrainInclination: number; // degreesL
   rainVolume: number;       // mm
   vibration: number;        // Richter mm/s
   localRisk: number;        // 0-100 severity
@@ -23,6 +34,13 @@ type TerrainState = {
   slopeData: { meanSlope: number; maxSlope: number; criticalAreas: number } | null;
   sensors: Sensor[];
   globalRisk: number;
+  weatherData: any | null;
+
+  // Flood Module Extensions
+  activeModule: 'landslide' | 'flood';
+  waterways: any[];
+  floodSensors: FloodSensor[];
+  globalFloodRisk: number;
 
   telemetryInterval: NodeJS.Timeout | null;
   weatherInterval: NodeJS.Timeout | null;
@@ -34,26 +52,79 @@ type TerrainState = {
   recalculateGlobalRisk: () => void;
   clearTerrain: () => void;
   fetchAndApplyWeather: () => Promise<void>;
+  setActiveModule: (module: 'landslide' | 'flood') => void;
 };
 
-// Calculate individual risk identical to the Backend logic
+// --- Structural Geotechnical Risk Logic (Mirrored from Backend) ---
+const calcularFatorEstrutural = (slope: number): number => {
+  const fator = slope / 45;
+  return Math.min(Math.max(fator, 0.05), 1);
+};
+
+const calcularRiscoBase = (
+  soilMoisture: number,
+  rainVolume: number,
+  vibration: number
+): number => {
+  const pesoChuva = 0.4;
+  const pesoUmidade = 0.35;
+  const pesoVibracao = 0.25;
+
+  return (
+    (rainVolume * pesoChuva) +
+    (soilMoisture * pesoUmidade) +
+    (vibration * pesoVibracao)
+  );
+};
+
 const calcLocalRisk = (sensor: Sensor) => {
-  let risk = 0;
-  risk += (sensor.soilMoisture / 100) * 35;
-  risk += Math.min(sensor.terrainInclination / 45, 1) * 30; // 45deg is max weight
-  risk += Math.min(sensor.rainVolume / 100, 1) * 20; // 100mm is max weight
-  risk += Math.min(sensor.vibration / 10, 1) * 15; // 10 mm/s is max weight
-  return Math.min(Math.round(risk), 100);
+  let riscoBase = calcularRiscoBase(sensor.soilMoisture, sensor.rainVolume, sensor.vibration);
+  const fatorEstrutural = calcularFatorEstrutural(sensor.terrainInclination);
+
+  let riscoFinal = riscoBase * fatorEstrutural;
+
+  // Crítico de Saturação (Encostas encharcadas)
+  if (sensor.soilMoisture > 90 && sensor.terrainInclination > 20) {
+    riscoFinal *= 1.2;
+  }
+
+  return Math.min(Math.max(Math.round(riscoFinal), 0), 100);
 };
 
-// Calculate projected future risk (6h) based on real weather incoming data
 const calculateFutureRisk = (sensor: Sensor, accumulatedRain6h: number) => {
-  const rainImpact = accumulatedRain6h * 0.5; // High weight for incoming weather events
-  const moistureImpact = sensor.soilMoisture * 0.3; // Existing moisture compounds heavily
-  const slopeImpact = Math.min(sensor.terrainInclination / 45, 1) * 20; // Structural vulnerability constant
+  let riscoBase = calcularRiscoBase(sensor.soilMoisture, accumulatedRain6h * 0.5, sensor.vibration); // Pessimistic rain projection
+  const fatorEstrutural = calcularFatorEstrutural(sensor.terrainInclination);
+  let riscoFinal = riscoBase * fatorEstrutural;
 
-  const totalFutureRisk = rainImpact + moistureImpact + slopeImpact;
-  return Math.max(sensor.localRisk, Math.min(Math.round(totalFutureRisk), 100)); // Future risk should rarely be significantly beneath current instantaneous baseline during rain
+  if (sensor.soilMoisture > 90 && sensor.terrainInclination > 20) {
+    riscoFinal *= 1.2;
+  }
+  
+  return Math.max(sensor.localRisk, Math.min(Math.round(riscoFinal), 100)); 
+};
+
+// --- Flood Module Logic ---
+const calcularRiscoEnchente = (sensor: FloodSensor, currentRain: number, accumulatedRain6h: number): number => {
+  // Risco = (chuvaAcumulada6h * 0.5) + (precipitacaoAtual * 0.3) + (fatorProximidadeRio * 0.2)
+  const normAcumulada = Math.min(accumulatedRain6h * 1.5, 100); 
+  const normChuvaMomento = Math.min(currentRain * 10, 100);
+  
+  // Proximity factor (maximized at 10km)
+  const proximityFactor = Math.max(0, 100 - (sensor.distanceToCenter / 100));
+
+  let risk = (normAcumulada * 0.5) + (normChuvaMomento * 0.3) + (proximityFactor * 0.2);
+
+  if (accumulatedRain6h > 70) {
+      risk = Math.max(risk, 60);
+  } else if (accumulatedRain6h > 40) {
+      risk = Math.max(risk, 40);
+  }
+  
+  if (currentRain === 0) {
+      risk = risk * 0.8; 
+  }
+
+  return Number(Math.min(Math.max(risk, 0), 100).toFixed(0));
 };
 
 export const useTerrainStore = create<TerrainState>((set, get) => ({
@@ -66,10 +137,23 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   slopeData: null,
   sensors: [],
   globalRisk: 0,
+  weatherData: null,
+  activeModule: 'flood',
+  waterways: [],
+  floodSensors: [],
+  globalFloodRisk: 0,
+
   telemetryInterval: null,
   weatherInterval: null,
 
   setTerrainData: (data, slopeData) => {
+    
+    // Auto-generate optimal sensors based on the new terrain matrix
+    let newSensors: Sensor[] = [];
+    if (data.elevationMatrix) {
+       newSensors = generateOptimalSensors(data.elevationMatrix, slopeData, 6);
+    }
+
     set({
       location: data.location,
       latitude: data.latitude,
@@ -77,8 +161,16 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       elevationMatrix: data.elevationMatrix,
       minElevation: data.minElevation,
       maxElevation: data.maxElevation,
-      slopeData,
+      waterways: data.waterways || [],
+      floodSensors: data.floodSensors || [],
+      sensors: newSensors,
+      slopeData
     });
+
+    // We must ensure the sensors length is captured so weather doesn't bounce
+    setTimeout(() => {
+        get().fetchAndApplyWeather();
+    }, 100);
   },
 
   fetchAndApplyWeather: async () => {
@@ -87,32 +179,103 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
 
     try {
       const resp = await fetch(`http://localhost:3001/api/weather/${latitude}/${longitude}`);
+      
+      if (!resp.ok) {
+         console.warn("Weather API non-JSON response:", await resp.text());
+         return;
+      }
+      
       const weatherData = await resp.json();
 
-      if (weatherData && weatherData.accumulatedRain6h !== undefined) {
+      if (weatherData && weatherData.current) {
          set((state) => {
             const upSensors = state.sensors.map(s => {
-               // Combine incoming weather to physical sensors logic
-               const newRain = weatherData.accumulatedRain6h;
-               // Average out ambient humidity affecting ground moisture slightly
-               const newMoisture = Math.min(s.soilMoisture + (weatherData.avgHumidity6h * 0.2), 100);
+               // Aplying real current data directly to sensors
+               // The API returns windSpeed in km/h or m/s. We map it to the vibration scale (0-100) loosely.
+               // e.g., 50km/h wind ~ 50 "vibration"
+               let newVibration = weatherData.current.windSpeed;
+               if (newVibration > 100) newVibration = 100;
+
+               // Soil moisture is usually 0 to 1 (m3/m3) or percentage. If it's a decimal, multiply by 100.
+               let smRaw = weatherData.current.soilMoisture;
+               if (smRaw === undefined || smRaw === null) smRaw = 0;
+               let newMoisture = smRaw < 1.5 ? smRaw * 100 : smRaw; // safety parse
+               if (newMoisture > 100) newMoisture = 100;
+
+               const newRain = weatherData.current.rain || 0;
+               const projectedRain = weatherData.accumulatedRain6h || 0;
 
                const updated = { 
                  ...s, 
                  rainVolume: newRain, 
-                 soilMoisture: newMoisture 
+                 soilMoisture: newMoisture,
+                 vibration: newVibration
                };
 
                updated.localRisk = calcLocalRisk(updated);
-               updated.futureRisk = calculateFutureRisk(updated, newRain);
+               updated.futureRisk = calculateFutureRisk(updated, projectedRain);
                return updated;
             });
-            return { sensors: upSensors };
+
+            // Calculate Flood updates
+            const upFloodSensors = state.floodSensors.map(fs => {
+               const projectedRain = weatherData.accumulatedRain6h || 0;
+               const currentRain = weatherData.current?.precipitation || 0;
+               const floodRisk = calcularRiscoEnchente(fs, currentRain, projectedRain);
+               
+               // Estimate Level loosely based on rain
+               const nivelAdicional = (projectedRain * 0.05) + (currentRain * 0.1);
+
+               return {
+                 ...fs,
+                 localRisk: floodRisk,
+                 nivelAtual: Number((2.0 + nivelAdicional).toFixed(2)) // Base river depth roughly 2.0m + rain
+               }
+            });
+
+            return { sensors: upSensors, floodSensors: upFloodSensors, weatherData: weatherData };
          });
          get().recalculateGlobalRisk();
       }
     } catch(e) {
-      console.error("Failed to fetch meteorology", e);
+      console.error("[FLOOD ERROR] Failed to fetch meteorology. Applying Fallback Mock Data...", e);
+      
+      const fallbackWeather = {
+        accumulatedRain6h: 50,
+        current: {
+          precipitation: 10,
+          windSpeed: 20,
+          soilMoisture: 0.8,
+          temperature: 22,
+          weatherCode: 3
+        }
+      };
+
+      set((state) => {
+          const upSensors = state.sensors.map(s => {
+             const updated = { 
+               ...s, 
+               rainVolume: fallbackWeather.current.precipitation, 
+               soilMoisture: 80,
+               vibration: 20
+             };
+             updated.localRisk = calcLocalRisk(updated);
+             updated.futureRisk = calculateFutureRisk(updated, fallbackWeather.accumulatedRain6h);
+             return updated;
+          });
+
+          const upFloodSensors = state.floodSensors.map(fs => {
+             const floodRisk = calcularRiscoEnchente(fs, 10, 50);
+             return {
+               ...fs,
+               localRisk: floodRisk,
+               nivelAtual: 3.5 // 2.0 base + 1.5 rain
+             }
+          });
+
+          return { sensors: upSensors, floodSensors: upFloodSensors, weatherData: fallbackWeather };
+      });
+      get().recalculateGlobalRisk();
     }
   },
 
@@ -126,7 +289,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     set({ sensors });
     get().recalculateGlobalRisk();
 
-    // Iniciar novo Telemetry Poller
+    // We now just broadcast telemetry. We don't poll updates from sensors because they are entirely driven by weather polling.
     const newTelemetry = setInterval(() => {
        const currentSensors = get().sensors;
        currentSensors.forEach(sensor => {
@@ -143,7 +306,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
             })
           }).catch(err => console.error("Telemetry error:", err));
        });
-    }, 10000);
+    }, 15000);
 
     // Weather Fetch (Immediately and then every 30 minutes)
     get().fetchAndApplyWeather();
@@ -154,13 +317,14 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     set({ telemetryInterval: newTelemetry, weatherInterval: newWeatherInterval });
   },
 
+  // Manual update sensors (if UI still allows forcing a change, but typically we rely on real-time polling)
   updateSensor: (id, partial) => {
     set((state) => {
       const updatedSensors = state.sensors.map((s) => {
         if (s.id !== id) return s;
         const updated = { ...s, ...partial };
         updated.localRisk = calcLocalRisk(updated);
-        // maintain projected risk recalculation
+        // maintain projected risk recalculation (assuming rainVolume is the projected logic variable fallback here)
         updated.futureRisk = calculateFutureRisk(updated, updated.rainVolume);
         return updated;
       });
@@ -190,6 +354,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     });
   },
 
+  setActiveModule: (module) => set({ activeModule: module }),
+
   clearTerrain: () => {
      const tInt = get().telemetryInterval;
      const wInt = get().weatherInterval;
@@ -198,7 +364,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
      
      set({ 
        location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0, 
-       telemetryInterval: null, weatherInterval: null 
+       telemetryInterval: null, weatherInterval: null, weatherData: null,
+       activeModule: 'landslide', waterways: [], floodSensors: [], globalFloodRisk: 0
      });
   }
 }));
@@ -268,7 +435,7 @@ export function generateOptimalSensors(matrix: number[][], slopeMap: any, maxSen
         gridX: cand.c,
         gridY: cand.r,
         position: { x: cand.x, y: cand.y, z: cand.z },
-        soilMoisture: 40 + Math.random() * 20, // valor inicial padrão
+        soilMoisture: 0, 
         terrainInclination: cand.slope,
         rainVolume: 0,
         vibration: 0,

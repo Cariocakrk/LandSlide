@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { startSensorSimulation, setSimulationMode, SimulationMode } from './lib/mockSensors';
 
 dotenv.config();
 
@@ -47,45 +46,7 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// 2. Change simulation mode
-app.post('/api/simulation/mode', async (req, res) => {
-  const { mode } = req.body;
-  if (!['normal', 'heavy_rain', 'saturated_soil', 'intense_vibration', 'critical_risk'].includes(mode)) {
-    return res.status(400).json({ error: 'Modo inválido' });
-  }
-  setSimulationMode(mode as SimulationMode);
-  
-  // Create an alert event when changed from normal
-  if (mode !== 'normal') {
-    const protocolCode = `DEF-${Math.floor(Math.random() * 1000000)}`;
-    
-    const tempAlert = {
-      id: `sim-${Date.now()}`,
-      protocolCode,
-      riskLevel: mode === 'critical_risk' ? 90 : 70, // Dummy based on mode
-      description: `Simulação de ${mode} acionada automaticamente.`,
-      status: "Em análise",
-      createdAt: new Date()
-    };
-    
-    try {
-      await prisma.emergencyProtocol.create({
-        data: {
-          protocolCode: tempAlert.protocolCode,
-          riskLevel: tempAlert.riskLevel,
-          description: tempAlert.description,
-          status: tempAlert.status
-        }
-      });
-    } catch (dbError) {
-      console.log(`[DB] Banco offline, simulação ${mode} emitindo alerta WebSocket limpo.`);
-    }
-
-    io.emit('emergencyAlert', tempAlert);
-  }
-
-  res.json({ success: true, mode });
-});
+// Endpoint "simulation/mode" was removed in favor of Real Weather.
 
 // 3. Civil Defense protocols
 app.get('/api/defense-protocols', async (req, res) => {
@@ -154,6 +115,7 @@ app.post('/api/defense-protocols/:id/status', async (req, res) => {
 
 import { getCoordinatesFromCEP } from './lib/geocoding';
 import { getElevationMatrix } from './lib/elevation';
+import { getWaterways } from './lib/waterways';
 
 // 4. Módulo Gerador Topográfico por CEP
 app.post('/api/generate-terrain', async (req, res) => {
@@ -171,14 +133,20 @@ app.post('/api/generate-terrain', async (req, res) => {
     // 2. Extrair altitude geográfica do modelo DEM
     const { matrix, min, max } = await getElevationMatrix(lat, lon);
     
-    // 3. Devolver formato de matriz Z compreensível para o Three.js do Frontend
+    // 3. Extrair malha hidrográfica (Rios) via Overpass e gerar Sensores de Enchente Virtuais
+    // Módulo Multi-Risco
+    const hydroData = await getWaterways(lat, lon);
+    
+    // 4. Devolver formato de matriz Z compreensível para o Three.js do Frontend
     return res.json({
        location: name,
        latitude: lat,
        longitude: lon,
        elevationMatrix: matrix,
        minElevation: min,
-       maxElevation: max
+       maxElevation: max,
+       waterways: hydroData.waterways,
+       floodSensors: hydroData.floodSensors
     });
 
   } catch (error: any) {
@@ -190,7 +158,9 @@ import axios from 'axios';
 
 // 5. Integração Meteorológica em Tempo Real (Open-Meteo)
 async function fetchWeather(lat: number, lng: number) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=precipitation,relativehumidity_2m&forecast_days=1&timezone=auto`;
+  // Pedindo Previsão Horária E Dados Atuais:
+  // Incluindo temperature_2m, weather_code e wind_speed_10m
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,soil_moisture_0_1cm,wind_speed_10m,weather_code&hourly=precipitation,temperature_2m,weather_code&forecast_days=2&timezone=auto`;
   const response = await axios.get(url);
   return response.data;
 }
@@ -205,21 +175,37 @@ app.get('/api/weather/:lat/:lng', async (req, res) => {
 
     const weatherData = await fetchWeather(parseFloat(lat), parseFloat(lng));
     
-    // Pegar as próximas 6 horas a partir de agora
+    // Pegar as próximas 12 horas a partir de agora:
     const currentHourIndex = new Date().getHours();
-    // Prevenção: Se faltar menos de 6h para o fim do dia, pega o resto que tiver (API de 1 dia)
-    const endIndex = Math.min(currentHourIndex + 6, weatherData.hourly.time.length);
+    const endIndex12h = Math.min(currentHourIndex + 12, weatherData.hourly.time.length);
+    const endIndex6h = Math.min(currentHourIndex + 6, weatherData.hourly.time.length);
     
-    const hourlyRain = weatherData.hourly.precipitation.slice(currentHourIndex, endIndex);
-    const hourlyHumidity = weatherData.hourly.relativehumidity_2m.slice(currentHourIndex, endIndex);
-    
-    const accumulatedRain6h = hourlyRain.reduce((acc: number, curr: number) => acc + curr, 0);
-    const avgHumidity6h = hourlyHumidity.reduce((acc: number, curr: number) => acc + curr, 0) / hourlyHumidity.length;
+    const hourlyRain6h = weatherData.hourly.precipitation.slice(currentHourIndex, endIndex6h);
+    const accumulatedRain6h = hourlyRain6h.reduce((acc: number, curr: number) => acc + curr, 0);
+
+    const hourlyForecast12h = [];
+    for (let i = currentHourIndex; i < endIndex12h; i++) {
+        hourlyForecast12h.push({
+            time: weatherData.hourly.time[i],
+            precipitation: weatherData.hourly.precipitation[i],
+            temperature: weatherData.hourly.temperature_2m[i],
+            weatherCode: weatherData.hourly.weather_code[i]
+        });
+    }
+
+    // Extrair os valores ATAIS reais (Current)
+    const current = weatherData.current;
 
     res.json({
-      hourlyRain,
       accumulatedRain6h: Number(accumulatedRain6h.toFixed(2)),
-      avgHumidity6h: Math.round(avgHumidity6h)
+      hourlyForecast: hourlyForecast12h,
+      current: {
+        temperature: current.temperature_2m,
+        rain: current.precipitation,
+        soilMoisture: current.soil_moisture_0_1cm,
+        windSpeed: current.wind_speed_10m,
+        weatherCode: current.weather_code
+      }
     });
 
   } catch (error) {
@@ -227,6 +213,8 @@ app.get('/api/weather/:lat/:lng', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar previsão meteorológica' });
   }
 });
+
+// Buildings route removed.
 
 // 6. Sistema de Telemetria de Sensores (Histórico em Memória)
 type SensorReading = {
@@ -296,8 +284,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start Simulation
-startSensorSimulation(io);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

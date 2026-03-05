@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
 import { useForm } from "react-hook-form";
@@ -11,6 +11,7 @@ import { MapPin, Mountain, AlertTriangle, ShieldCheck, Search, Loader2 } from "l
 import { useTerrainStore, generateOptimalSensors } from "@/store/terrainStore";
 import { calculateSlope } from "@/lib/slopeCalculation";
 import { TerrainMesh } from "@/components/3d/TerrainMesh";
+import { FloodRiskModule } from "@/components/3d/FloodRiskModule";
 
 const cepSchema = z.object({
   cep: z.string().min(8, "CEP deve ter 8 dígitos").max(9, "Formato inválido")
@@ -27,7 +28,6 @@ export default function GerarTerrenoPage() {
   const maxElevation = useTerrainStore(state => state.maxElevation);
   const slopeData = useTerrainStore(state => state.slopeData);
   const globalRisk = useTerrainStore(state => state.globalRisk);
-  const setSensors = useTerrainStore(state => state.setSensors);
 
   const terrainData = elevationMatrix ? {
      location,
@@ -40,14 +40,6 @@ export default function GerarTerrenoPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMSG, setErrorMSG] = useState("");
-
-  // Reatividade: Gerar sensores ao recarregar a malha e resetar os antigos
-  useEffect(() => {
-    if (elevationMatrix && slopeData) {
-       const optimalSensors = generateOptimalSensors(elevationMatrix, slopeData, 5);
-       setSensors(optimalSensors);
-    }
-  }, [elevationMatrix, slopeData, setSensors]);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(cepSchema)
@@ -65,11 +57,20 @@ export default function GerarTerrenoPage() {
         body: JSON.stringify({ cep: data.cep })
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-         throw new Error(result.error || "Erro ao gerar terreno.");
+         const text = await response.text();
+         let errorMessage = "Erro ao gerar terreno.";
+         try {
+            const errJson = JSON.parse(text);
+            if (errJson.error) errorMessage = errJson.error;
+         } catch {
+            errorMessage = `Erro na API: ${response.status} (Serviço indisponível ou rota inválida)`;
+            console.error("API response not JSON:", text.substring(0, 200));
+         }
+         throw new Error(errorMessage);
       }
+
+      const result = await response.json();
 
       const calculatedSlope = calculateSlope(result.elevationMatrix);
       setTerrainData(result, calculatedSlope);
@@ -193,12 +194,15 @@ export default function GerarTerrenoPage() {
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[10, 10, 5]} intensity={1.5} />
                 <Environment preset="night" />
-                <TerrainMesh 
-                   matrix={terrainData.elevationMatrix} 
-                   minElevation={terrainData.minElevation} 
-                   maxElevation={terrainData.maxElevation} 
-                   isCritical={RiskStatus?.label === "CRÍTICO"}
-                />
+                <Suspense fallback={null}>
+                  <TerrainMesh 
+                     matrix={terrainData.elevationMatrix} 
+                     minElevation={terrainData.minElevation} 
+                     maxElevation={terrainData.maxElevation} 
+                     isCritical={RiskStatus?.label === "CRÍTICO"}
+                  />
+                  <FloodRiskModule />
+                </Suspense>
                 <OrbitControls enableZoom={true} enablePan={true} autoRotate={false} maxPolarAngle={Math.PI / 2.2} />
              </Canvas>
              <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-gray-500 font-mono tracking-wider">

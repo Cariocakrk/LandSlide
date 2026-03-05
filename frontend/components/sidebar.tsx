@@ -10,7 +10,6 @@ const links = [
   { name: 'Dashboard Real-Time', href: '/dashboard', icon: Activity },
   { name: 'Mapa 3D', href: '/mapa-3d', icon: Map },
   { name: 'Topografia (CEP)', href: '/gerar-terreno', icon: MapPin },
-  { name: 'Simulação de Risco', href: '/simulacao', icon: ShieldAlert },
   { name: 'Defesa Civil', href: '/defesa-civil', icon: ShieldAlert },
   { name: 'Histórico', href: '/historico', icon: History },
 ];
