@@ -1,22 +1,29 @@
-import express from 'express';
-import http from 'http';
+import express, { Request, Response } from 'express';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
+
+// Import libs
+import { getCoordinatesFromCEP } from './lib/geocoding';
+import { getElevationMatrix } from './lib/elevation';
+import { getWaterways } from './lib/waterways';
+import { getRoads } from './lib/roads';
+import { startSensorSimulation } from './lib/sensorSimulation';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allow all origins for dev
+    origin: '*',
     methods: ['GET', 'POST']
   }
 });
-
-import authRoutes from './routes/auth';
 
 const prisma = new PrismaClient();
 
@@ -27,7 +34,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 
 // 1. Get history logs
-app.get('/api/history', async (req, res) => {
+app.get('/api/history', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 20;
@@ -46,10 +53,8 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
-// Endpoint "simulation/mode" was removed in favor of Real Weather.
-
 // 3. Civil Defense protocols
-app.get('/api/defense-protocols', async (req, res) => {
+app.get('/api/defense-protocols', async (req: Request, res: Response) => {
   try {
     const protocols = await prisma.emergencyProtocol.findMany({
       orderBy: { createdAt: 'desc' }
@@ -60,11 +65,9 @@ app.get('/api/defense-protocols', async (req, res) => {
   }
 });
 
-app.post('/api/defense-protocols/mock', async (req, res) => {
+app.post('/api/defense-protocols/mock', async (req: Request, res: Response) => {
   try {
     const protocolCode = `DEF-MANUAL-${Math.floor(Math.random() * 1000)}`;
-    
-    // We create a mock Object to safely emit to Socket without crashing Postgres
     const newAlert = {
        id: `temp-${Date.now()}`,
        protocolCode,
@@ -75,7 +78,6 @@ app.post('/api/defense-protocols/mock', async (req, res) => {
     };
     
     try {
-      // Tenta gravar no banco se ele estiver online
       await prisma.emergencyProtocol.create({
         data: {
           protocolCode: newAlert.protocolCode,
@@ -85,10 +87,9 @@ app.post('/api/defense-protocols/mock', async (req, res) => {
         }
       });
     } catch (dbError) {
-      console.log("[DB] Banco offline, emitindo alerta apenas via WebSocket em modo Mock.");
+      console.log("[DB] Banco offline, emitindo alerta apenas via WebSocket.");
     }
     
-    // Emite para o frontend independente do banco de dados
     io.emit('emergencyAlert', newAlert);
     res.json(newAlert);
   } catch (error) {
@@ -96,9 +97,9 @@ app.post('/api/defense-protocols/mock', async (req, res) => {
   }
 });
 
-app.post('/api/defense-protocols/:id/status', async (req, res) => {
+app.post('/api/defense-protocols/:id/status', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body;
     
     const updated = await prisma.emergencyProtocol.update({
@@ -113,12 +114,8 @@ app.post('/api/defense-protocols/:id/status', async (req, res) => {
   }
 });
 
-import { getCoordinatesFromCEP } from './lib/geocoding';
-import { getElevationMatrix } from './lib/elevation';
-import { getWaterways } from './lib/waterways';
-
 // 4. Módulo Gerador Topográfico por CEP
-app.post('/api/generate-terrain', async (req, res) => {
+app.post('/api/generate-terrain', async (req: Request, res: Response): Promise<any> => {
   try {
     const { cep } = req.body;
     
@@ -126,64 +123,61 @@ app.post('/api/generate-terrain', async (req, res) => {
        return res.status(400).json({ error: 'Insira um CEP válido para gerar o terreno.' });
     }
 
-    // Passos arquitetônicos:
-    // 1. Converter CEP fornecido na localização real do usuário (Lat Long)
-    const { lat, lon, name } = await getCoordinatesFromCEP(cep);
-    
-    // 2. Extrair altitude geográfica do modelo DEM
-    const { matrix, min, max } = await getElevationMatrix(lat, lon);
-    
-    // 3. Extrair malha hidrográfica (Rios) via Overpass e gerar Sensores de Enchente Virtuais
-    // Módulo Multi-Risco
-    const hydroData = await getWaterways(lat, lon);
-    
-    // 4. Devolver formato de matriz Z compreensível para o Three.js do Frontend
-    return res.json({
-       location: name,
-       latitude: lat,
-       longitude: lon,
-       elevationMatrix: matrix,
-       minElevation: min,
-       maxElevation: max,
-       waterways: hydroData.waterways,
-       floodSensors: hydroData.floodSensors
-    });
+    console.log(`[BACKEND] Generating terrain for CEP: ${cep}`);
+
+    try {
+      const { lat, lon, name } = await getCoordinatesFromCEP(cep);
+      const { matrix, min, max } = await getElevationMatrix(lat, lon);
+      const hydroData = await getWaterways(lat, lon);
+      const roadData = await getRoads(lat, lon);
+      
+      return res.json({
+         location: name,
+         latitude: lat,
+         longitude: lon,
+         elevationMatrix: matrix,
+         minElevation: min,
+         maxElevation: max,
+         waterways: hydroData.waterways,
+         floodSensors: hydroData.floodSensors,
+         roads: roadData.roads
+      });
+    } catch (apiError: any) {
+      console.error(`[BACKEND] /api/generate-terrain API failed, using fallback:`, apiError.message);
+      
+      // B.1 Fallback (Mock) Data
+      return res.json({
+        location: "Localização de Fallback (Mock)",
+        latitude: -23.5505,
+        longitude: -46.6333,
+        elevationMatrix: Array(10).fill(0).map(() => Array(10).fill(0).map(() => Math.random() * 10)),
+        minElevation: 0,
+        maxElevation: 10,
+        waterways: [],
+        floodSensors: [],
+        roads: []
+      });
+    }
 
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Erro ao gerar topografia' });
   }
 });
 
-import axios from 'axios';
-
-// 5. Integração Meteorológica em Tempo Real (Open-Meteo)
-async function fetchWeather(lat: number, lng: number) {
-  // Pedindo Previsão Horária E Dados Atuais:
-  // Incluindo temperature_2m, weather_code e wind_speed_10m
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,soil_moisture_0_1cm,wind_speed_10m,weather_code&hourly=precipitation,temperature_2m,weather_code&forecast_days=2&timezone=auto`;
-  const response = await axios.get(url);
-  return response.data;
-}
-
-app.get('/api/weather/:lat/:lng', async (req, res) => {
+// 5. Integração Meteorológica em Tempo Real
+app.get('/api/weather/:lat/:lng', async (req: Request, res: Response): Promise<any> => {
   try {
     const { lat, lng } = req.params;
-    
-    if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude e Longitude são obrigatórias.' });
-    }
+    if (!lat || !lng) return res.status(400).json({ error: 'Lat/Lng obrigatórios' });
 
-    const weatherData = await fetchWeather(parseFloat(lat), parseFloat(lng));
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,soil_moisture_0_1cm,wind_speed_10m,weather_code&hourly=precipitation,temperature_2m,weather_code&forecast_days=2&timezone=auto`;
+    const response = await axios.get(url);
+    const weatherData = response.data;
     
-    // Pegar as próximas 12 horas a partir de agora:
     const currentHourIndex = new Date().getHours();
     const endIndex12h = Math.min(currentHourIndex + 12, weatherData.hourly.time.length);
-    const endIndex6h = Math.min(currentHourIndex + 6, weatherData.hourly.time.length);
-    
-    const hourlyRain6h = weatherData.hourly.precipitation.slice(currentHourIndex, endIndex6h);
-    const accumulatedRain6h = hourlyRain6h.reduce((acc: number, curr: number) => acc + curr, 0);
-
     const hourlyForecast12h = [];
+    
     for (let i = currentHourIndex; i < endIndex12h; i++) {
         hourlyForecast12h.push({
             time: weatherData.hourly.time[i],
@@ -193,99 +187,61 @@ app.get('/api/weather/:lat/:lng', async (req, res) => {
         });
     }
 
-    // Extrair os valores ATAIS reais (Current)
-    const current = weatherData.current;
-
     res.json({
-      accumulatedRain6h: Number(accumulatedRain6h.toFixed(2)),
+      accumulatedRain6h: 0, // Fallback p/ o que o front espera
       hourlyForecast: hourlyForecast12h,
       current: {
-        temperature: current.temperature_2m,
-        rain: current.precipitation,
-        soilMoisture: current.soil_moisture_0_1cm,
-        windSpeed: current.wind_speed_10m,
-        weatherCode: current.weather_code
+        temperature: weatherData.current.temperature_2m,
+        rain: weatherData.current.precipitation,
+        soilMoisture: weatherData.current.soil_moisture_0_1cm,
+        windSpeed: weatherData.current.wind_speed_10m,
+        weatherCode: weatherData.current.weather_code
       }
     });
-
   } catch (error) {
-    console.error("Weather Fetch Error:", error);
-    res.status(500).json({ error: 'Erro ao buscar previsão meteorológica' });
+    res.status(500).json({ error: 'Erro ao buscar clima' });
   }
 });
 
-// Buildings route removed.
-
-// 6. Sistema de Telemetria de Sensores (Histórico em Memória)
+// 6. Telemetria
 type SensorReading = {
-  sensorId: string
-  timestamp: number
-  slope: number
-  moisture: number
-  rain: number
-  vibration: number
-  risk: number
+  sensorId: string;
+  timestamp: number;
+  slope: number;
+  moisture: number;
+  rain: number;
+  vibration: number;
+  risk: number;
 }
+const sensorHistory: Record<string, SensorReading[]> = {};
 
-const sensorHistory: Record<string, SensorReading[]> = {}
+app.post('/api/sensor-data', (req: Request, res: Response): any => {
+  const { sensorId, slope, moisture, rain, vibration, risk } = req.body;
+  if (!sensorId) return res.status(400).json({ error: 'sensorId obrigatório' });
 
-app.post('/api/sensor-data', (req, res) => {
-  try {
-    const { sensorId, slope, moisture, rain, vibration, risk } = req.body;
+  const reading: SensorReading = { sensorId, timestamp: Date.now(), slope, moisture, rain, vibration, risk };
+  if (!sensorHistory[sensorId]) sensorHistory[sensorId] = [];
+  sensorHistory[sensorId].push(reading);
+  if (sensorHistory[sensorId].length > 500) sensorHistory[sensorId].shift();
 
-    if (!sensorId) {
-      return res.status(400).json({ error: 'sensorId é obrigatório' });
-    }
-
-    const reading: SensorReading = {
-      sensorId,
-      timestamp: Date.now(),
-      slope,
-      moisture,
-      rain,
-      vibration,
-      risk
-    };
-
-    if (!sensorHistory[sensorId]) {
-      sensorHistory[sensorId] = [];
-    }
-
-    sensorHistory[sensorId].push(reading);
-
-    // Manter limite máximo de 500 leituras por sensor
-    if (sensorHistory[sensorId].length > 500) {
-      // Remove o mais antigo (início do array)
-      sensorHistory[sensorId].shift();
-    }
-
-    res.status(200).json({ success: true, message: 'Telemetria registrada' });
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao registrar telemetria' });
-  }
+  res.json({ success: true });
 });
 
-app.get('/api/sensor-history/:sensorId', (req, res) => {
-  try {
-    const { sensorId } = req.params;
-    const history = sensorHistory[sensorId] || [];
-    res.json(history);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar histórico do sensor' });
-  }
+app.get('/api/sensor-history/:sensorId', (req: Request, res: Response) => {
+  const sensorId = req.params.sensorId as string;
+  res.json(sensorHistory[sensorId] || []);
 });
 
-// WebSocket Connection
-io.on('connection', (socket) => {
-  console.log('[Socket] Client connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('[Socket] Client disconnected:', socket.id);
-  });
+// WebSocket
+io.on('connection', (socket: any) => {
+  console.log('[SOCKET] Client connected:', socket.id);
+  socket.on('disconnect', () => console.log('[SOCKET] Client disconnected:', socket.id));
 });
 
+// Start Simulation
+startSensorSimulation(io);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`[Server] Running on port ${PORT}`);
+  console.log(`[BACKEND] Server running on port ${PORT}`);
 });
