@@ -9,6 +9,7 @@ import { Map, AlertTriangle, MapPin } from 'lucide-react';
 import { useTerrainStore } from '@/store/terrainStore';
 import { TerrainMesh } from '@/components/3d/TerrainMesh';
 import { FloodRiskModule } from '@/components/3d/FloodRiskModule';
+import { RoadOverlayGroup } from '@/components/3d/RoadOverlayGroup';
 import WeatherWidget from '@/components/WeatherWidget';
 
 function Terrain({ riskColor }: { riskColor: string }) {
@@ -138,6 +139,15 @@ export default function Mapa3D() {
     setIsRaining(hasRain);
   }, [globalRisk, sensors]);
 
+  const onCreated = ({ gl }: { gl: THREE.WebGLRenderer }) => {
+    gl.setClearColor(new THREE.Color('#050505'));
+    // User requested explicit cleanup in prompt:
+    window.addEventListener('beforeunload', () => {
+       gl.forceContextLoss();
+       gl.dispose();
+    });
+  };
+
   return (
     <div className="flex flex-col h-full w-full relative bg-black">
       <div className="absolute top-6 left-6 z-10 bg-black/60 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl max-w-sm animate-in slide-in-from-left duration-700">
@@ -171,7 +181,11 @@ export default function Mapa3D() {
 
       <WeatherWidget />
 
-      <Canvas shadows camera={{ position: [15, 15, 15], fov: 50 }}>
+      <Canvas 
+        shadows 
+        camera={{ position: [15, 15, 15], fov: 50 }}
+        onCreated={onCreated}
+      >
         <color attach="background" args={['#050505']} />
         <ambientLight intensity={0.1} />
         <directionalLight castShadow position={[10, 20, 10]} intensity={2.5} shadow-mapSize={[2048, 2048]} />
@@ -180,6 +194,7 @@ export default function Mapa3D() {
         {elevationMatrix ? (
             <Suspense fallback={null}>
                <TerrainMesh matrix={elevationMatrix} minElevation={minElevation} maxElevation={maxElevation} autoRotate={true} />
+               <RoadOverlayGroup />
                <FloodRiskModule />
             </Suspense>
         ) : (
