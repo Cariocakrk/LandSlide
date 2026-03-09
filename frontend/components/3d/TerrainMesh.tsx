@@ -6,6 +6,7 @@ import { Plane, Sphere, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useTerrainStore } from '@/store/terrainStore';
 import { CloudRain, Sun, Cloud, CloudLightning, ThermometerSnowflake } from 'lucide-react';
+import { convertLatLngToWorld } from '@/lib/mapUtils';
 
 const getWeatherIcon = (code: number) => {
   if (code === 0) return Sun;
@@ -18,23 +19,7 @@ const getWeatherIcon = (code: number) => {
   return Cloud;
 };
 
-// Approximated conversion from degrees to local 10x10 ThreeJS coordinates
-function convertLatLngToTerrain(
-  lat: number,
-  lon: number,
-  centerLat: number,
-  centerLon: number,
-  gridWidth: number,
-  gridHeight: number
-) {
-  const latRatio = (lat - centerLat) * 111000;
-  const lonRatio = (lon - centerLon) * 111000 * Math.cos(centerLat * (Math.PI / 180));
-  const scale = gridWidth / 1600; 
-  return {
-    x: lonRatio * scale,
-    z: -latRatio * scale 
-  };
-}
+// convertLatLngToTerrain removed in favor of mapUtils.convertLatLngToWorld
 
 // Convert LatLng to OSM Tile index
 function latLngToTile(lat: number, lng: number, zoom: number) {
@@ -260,48 +245,52 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
          </Html>
       )}
 
-      {/* Base Texturada do OSM */}
-      <mesh ref={planeRef}>
-        <planeGeometry args={[10, 10, matrix?.length ? matrix[0].length - 1 : 63, matrix?.length ? matrix.length - 1 : 63]} />
-        <meshStandardMaterial 
-          map={texture}
-          roughness={1}
-          metalness={0}
-        />
-      </mesh>
+      <group name="TerrainGroup">
+         {/* Base Texturada do OSM */}
+         <mesh ref={planeRef}>
+           <planeGeometry args={[10, 10, matrix?.length ? matrix[0].length - 1 : 63, matrix?.length ? matrix.length - 1 : 63]} />
+           <meshStandardMaterial 
+             map={texture}
+             roughness={1}
+             metalness={0}
+           />
+         </mesh>
 
-      {/* Risk Overlay Translucido (usa mesma geom depois do useEffect) */}
-      <mesh ref={overlayMeshRef} position={[0, 0.02, 0]}>
-         {/* O material tem blending aditivo pra somar com o brilho da textura */}
-         <meshBasicMaterial 
-           ref={overlayMatRef} 
-           vertexColors={true} 
-           transparent={true} 
-           opacity={0.4} 
-           depthWrite={false} 
-           blending={THREE.AdditiveBlending}
-         />
-      </mesh>
+         {/* Risk Overlay Translucido (usa mesma geom depois do useEffect) */}
+         <mesh ref={overlayMeshRef} position={[0, 0.02, 0]}>
+            {/* O material tem blending aditivo pra somar com o brilho da textura */}
+            <meshBasicMaterial 
+              ref={overlayMatRef} 
+              vertexColors={true} 
+              transparent={true} 
+              opacity={0.4} 
+              depthWrite={false} 
+              blending={THREE.AdditiveBlending}
+            />
+         </mesh>
+      </group>
       
-      {/* Sensores ancorados visualmente pelo Raycaster */}
-      {sensors.map((s) => {
-         const pos = sensorPositions[s.id];
-         if (!pos) return null; // Esconde enquanto não ancorar
+      <group name="SensorGroup">
+         {/* Sensores ancorados visualmente pelo Raycaster */}
+         {sensors.map((s) => {
+            const pos = sensorPositions[s.id];
+            if (!pos) return null; // Esconde enquanto não ancorar
 
-         return (
-            <Sphere 
-              key={s.id} 
-              args={[0.15, 16, 16]} 
-              position={[pos.x, pos.y, pos.z]}
-            >
-              <meshStandardMaterial 
-                color={getSensorColor(s.localRisk)} 
-                emissive={getSensorColor(s.localRisk)} 
-                emissiveIntensity={s.localRisk > 70 ? 2 : 0.5} 
-              />
-            </Sphere>
-         );
-      })}
+            return (
+               <Sphere 
+                 key={s.id} 
+                 args={[0.15, 16, 16]} 
+                 position={[pos.x, pos.y, pos.z]}
+               >
+                 <meshStandardMaterial 
+                   color={getSensorColor(s.localRisk)} 
+                   emissive={getSensorColor(s.localRisk)} 
+                   emissiveIntensity={s.localRisk > 70 ? 2 : 0.5} 
+                 />
+               </Sphere>
+            );
+         })}
+      </group>
     </group>
   );
 }
