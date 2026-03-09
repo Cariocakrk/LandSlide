@@ -42,6 +42,8 @@ type TerrainState = {
   floodSensors: FloodSensor[];
   globalFloodRisk: number;
 
+  roads: any[];
+
   telemetryInterval: NodeJS.Timeout | null;
   weatherInterval: NodeJS.Timeout | null;
 
@@ -53,6 +55,7 @@ type TerrainState = {
   clearTerrain: () => void;
   fetchAndApplyWeather: () => Promise<void>;
   setActiveModule: (module: 'landslide' | 'flood') => void;
+  applyFallbackTerrain: () => void;
 };
 
 // --- Structural Geotechnical Risk Logic (Mirrored from Backend) ---
@@ -142,6 +145,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   waterways: [],
   floodSensors: [],
   globalFloodRisk: 0,
+  roads: [],
 
   telemetryInterval: null,
   weatherInterval: null,
@@ -163,6 +167,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       maxElevation: data.maxElevation,
       waterways: data.waterways || [],
       floodSensors: data.floodSensors || [],
+      roads: data.roads || [],
       sensors: newSensors,
       slopeData
     });
@@ -365,8 +370,28 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
      set({ 
        location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0, 
        telemetryInterval: null, weatherInterval: null, weatherData: null,
-       activeModule: 'landslide', waterways: [], floodSensors: [], globalFloodRisk: 0
+       activeModule: 'landslide', waterways: [], floodSensors: [], globalFloodRisk: 0, roads: []
      });
+  },
+
+  applyFallbackTerrain: () => {
+     console.warn("[FRONTEND] Using procedural fallback terrain.");
+     const fallbackData = {
+        location: "Área Procedural (Fallback)",
+        latitude: -23.5505,
+        longitude: -46.6333,
+        elevationMatrix: Array(32).fill(0).map((_, r) => Array(32).fill(0).map((_, c) => 
+          Math.sin(r * 0.3) * Math.cos(c * 0.3) * 10 + Math.random() * 2
+        )),
+        minElevation: 0,
+        maxElevation: 12,
+        waterways: [],
+        floodSensors: [],
+        roads: []
+     };
+     
+     const slopeData = { meanSlope: 12, maxSlope: 35, criticalAreas: 5 };
+     get().setTerrainData(fallbackData, slopeData);
   }
 }));
 

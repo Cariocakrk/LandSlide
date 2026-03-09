@@ -12,6 +12,7 @@ import { useTerrainStore, generateOptimalSensors } from "@/store/terrainStore";
 import { calculateSlope } from "@/lib/slopeCalculation";
 import { TerrainMesh } from "@/components/3d/TerrainMesh";
 import { FloodRiskModule } from "@/components/3d/FloodRiskModule";
+import { RoadOverlayGroup } from "@/components/3d/RoadOverlayGroup";
 
 const cepSchema = z.object({
   cep: z.string().min(8, "CEP deve ter 8 dígitos").max(9, "Formato inválido")
@@ -75,7 +76,9 @@ export default function GerarTerrenoPage() {
       const calculatedSlope = calculateSlope(result.elevationMatrix);
       setTerrainData(result, calculatedSlope);
     } catch (err: any) {
-      setErrorMSG(err.message);
+      console.error("[FRONTEND] API error detected, applying client-side fallback:", err.message);
+      setErrorMSG(`A API falhou (${err.message}). Carregando terreno de fallback procedural para demonstração.`);
+      useTerrainStore.getState().applyFallbackTerrain();
     } finally {
       setLoading(false);
     }
@@ -201,6 +204,7 @@ export default function GerarTerrenoPage() {
                      maxElevation={terrainData.maxElevation} 
                      isCritical={RiskStatus?.label === "CRÍTICO"}
                   />
+                  <RoadOverlayGroup />
                   <FloodRiskModule />
                 </Suspense>
                 <OrbitControls enableZoom={true} enablePan={true} autoRotate={false} maxPolarAngle={Math.PI / 2.2} />
