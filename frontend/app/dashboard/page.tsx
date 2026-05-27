@@ -223,7 +223,15 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ title, value, unit, icon: Icon, color }: any) {
+interface MetricCardProps {
+  title: string;
+  value: number | undefined | null;
+  unit: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+function MetricCard({ title, value, unit, icon: Icon, color }: MetricCardProps) {
   return (
     <div className="border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-6 flex flex-col justify-between hover:bg-white/5 transition-colors">
       <div className="flex items-center justify-between mb-4">

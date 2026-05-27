@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000; /* OLED Pitch Black para máximo conforto visual e economia de energia */
+  --foreground: #e2e8f0; /* Cinza ardósia suave (menos agressivo aos olhos do que o branco puro) */
 }
 
 @theme inline {
@@ -12,15 +12,39 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--background) !important;
+  color: var(--foreground) !important;
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Customização de Scrollbars Premium para o Console */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6/50;
+}
+
+/* Estilização suave para seleções de texto */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #ffffff;
+}
+
+/* Correções globais para inputs e selects noturnos nos navegadores */
+input, select, textarea {
+  color-scheme: dark;
+}
+

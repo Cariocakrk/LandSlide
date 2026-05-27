@@ -44,7 +44,7 @@ export default function GerarTerrenoPage() {
   // Reatividade: Gerar sensores ao recarregar a malha e resetar os antigos
   useEffect(() => {
     if (elevationMatrix && slopeData) {
-       const optimalSensors = generateOptimalSensors(elevationMatrix, slopeData, 5);
+       const optimalSensors = generateOptimalSensors(elevationMatrix, 5);
        setSensors(optimalSensors);
     }
   }, [elevationMatrix, slopeData, setSensors]);
@@ -53,7 +53,7 @@ export default function GerarTerrenoPage() {
     resolver: zodResolver(cepSchema)
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: { cep: string }) => {
     setLoading(true);
     setErrorMSG("");
     useTerrainStore.getState().clearTerrain();
@@ -73,8 +73,8 @@ export default function GerarTerrenoPage() {
 
       const calculatedSlope = calculateSlope(result.elevationMatrix);
       setTerrainData(result, calculatedSlope);
-    } catch (err: any) {
-      setErrorMSG(err.message);
+    } catch (err: unknown) {
+      setErrorMSG(err instanceof Error ? err.message : "Erro ao gerar terreno.");
     } finally {
       setLoading(false);
     }

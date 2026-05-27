@@ -9,16 +9,33 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key';
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phoneNumber, cep } = req.body;
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(400).json({ error: 'Usuário já existe' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name, email, password: hashedPassword, role: role || 'OPERATOR' }
+      data: { 
+        name, 
+        email, 
+        password: hashedPassword, 
+        role: role || 'OPERATOR',
+        phoneNumber: phoneNumber || null,
+        cep: cep || null
+      }
     });
 
-    res.json({ message: 'Usuário criado com sucesso', user: { id: user.id, email: user.email } });
+    res.json({ 
+      message: 'Usuário criado com sucesso', 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        name: user.name, 
+        role: user.role,
+        phoneNumber: user.phoneNumber,
+        cep: user.cep
+      } 
+    });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao registrar usuário' });
   }

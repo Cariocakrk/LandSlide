@@ -1,13 +1,14 @@
 "use client";
 
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, Html } from '@react-three/drei';
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { OrbitControls, Html } from '@react-three/drei';
+import { useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { socket } from '@/lib/socket';
 import { Map, AlertTriangle, MapPin } from 'lucide-react';
-import { useTerrainStore } from '@/store/terrainStore';
+import { useTerrainStore, Sensor } from '@/store/terrainStore';
 import { TerrainMesh } from '@/components/3d/TerrainMesh';
+import { SensorSidebar } from '@/components/3d/SensorSidebar';
+import { AnimatePresence } from 'framer-motion';
 
 function Terrain({ riskColor }: { riskColor: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -51,11 +52,16 @@ function Rain({ isRaining }: { isRaining: boolean }) {
   const [positions, velocities] = useMemo(() => {
     const p = new Float32Array(count * 3);
     const v = new Float32Array(count);
+    let seed = 1;
+    const random = () => {
+      const x = Math.sin(seed++) * 10000;
+      return x - Math.floor(x);
+    };
     for(let i=0; i<count; i++){
-      p[i*3] = (Math.random() - 0.5) * 30;
-      p[i*3+1] = Math.random() * 20;
-      p[i*3+2] = (Math.random() - 0.5) * 30;
-      v[i] = 0.1 + Math.random() * 0.3;
+      p[i*3] = (random() - 0.5) * 30;
+      p[i*3+1] = random() * 20;
+      p[i*3+2] = (random() - 0.5) * 30;
+      v[i] = 0.1 + random() * 0.3;
     }
     return [p, v];
   }, []);
@@ -86,23 +92,32 @@ function Rain({ isRaining }: { isRaining: boolean }) {
   );
 }
 
-function SensorNode({ sensor }: { sensor: any }) {
+function SensorNode({ sensor, onSelect }: { sensor: Sensor; onSelect: (id: string) => void }) {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <Html position={[sensor.position.x, sensor.position.y + 1, sensor.position.z]} center className="pointer-events-none">
-       <div className={`transition-all duration-300 ${hovered ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`}>
-         <div className="bg-black/80 backdrop-blur-md text-white p-3 rounded-xl border border-white/20 shadow-2xl min-w-[150px]">
-            <div className="font-bold border-b border-white/20 pb-1 mb-2 text-sm flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3 text-blue-400" /> {sensor.id}
-            </div>
-            <div className="text-xs space-y-1">
-              <div>Risco Local: {sensor.localRisk}/100</div>
-              <div>Umidade: {sensor.soilMoisture.toFixed(0)}%</div>
-              <div>Inclinação: {sensor.terrainInclination.toFixed(0)}°</div>
-              <div>Vibração: {sensor.vibration.toFixed(0)} Hz</div>
-            </div>
-         </div>
+    <Html position={[sensor.position.x, sensor.position.y + 1, sensor.position.z]} center>
+       <div 
+         onMouseEnter={() => setHovered(true)}
+         onMouseLeave={() => setHovered(false)}
+         onClick={() => onSelect(sensor.id)}
+         className={`transition-all duration-300 pointer-events-auto cursor-pointer ${hovered ? 'scale-105 opacity-100 z-50' : 'scale-90 opacity-60'}`}
+       >
+          <div className="bg-black/85 backdrop-blur-md text-white p-3 rounded-xl border border-white/20 shadow-2xl min-w-[150px] hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all">
+             <div className="font-bold border-b border-white/20 pb-1 mb-2 text-sm flex items-center justify-between gap-1">
+               <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-blue-400" /> {sensor.id}</span>
+               <span className="text-[9px] px-1.5 bg-white/10 rounded text-gray-400 font-mono uppercase tracking-wide">IoT</span>
+             </div>
+             <div className="text-xs space-y-1">
+               <div>Risco Local: <strong className="text-white">{sensor.localRisk}/100</strong></div>
+               <div>Umidade: <strong className="text-white">{sensor.soilMoisture.toFixed(0)}%</strong></div>
+               <div>Inclinação: <strong className="text-white">{sensor.terrainInclination.toFixed(0)}°</strong></div>
+               <div>Vibração: <strong className="text-white">{sensor.vibration.toFixed(0)} Hz</strong></div>
+             </div>
+             <div className="mt-2 text-[9px] text-blue-400 text-center uppercase tracking-wider font-bold">
+               Clique para Inspecionar
+             </div>
+          </div>
        </div>
     </Html>
   );
@@ -123,20 +138,18 @@ function PointLight({ color }: { color: string }) {
 
 export default function Mapa3D() {
   const { location, elevationMatrix, minElevation, maxElevation, globalRisk, sensors } = useTerrainStore();
-  const [colorHex, setColorHex] = useState('#1f2937');
-  const [isRaining, setIsRaining] = useState(false);
+  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Dynamic Global Risk Color
-    if (globalRisk > 70) setColorHex("#9b2c2c");
-    else if (globalRisk > 40) setColorHex("#f97316");
-    else if (globalRisk > 15) setColorHex("#eab308");
-    else setColorHex("#10b981");
+  const colorHex = useMemo(() => {
+    if (globalRisk > 70) return "#9b2c2c";
+    if (globalRisk > 40) return "#f97316";
+    if (globalRisk > 15) return "#eab308";
+    return "#10b981";
+  }, [globalRisk]);
 
-    // Dynamic Rain System
-    const hasRain = sensors.some(s => s.rainVolume > 30);
-    setIsRaining(hasRain);
-  }, [globalRisk, sensors]);
+  const isRaining = useMemo(() => {
+    return sensors.some(s => s.rainVolume > 30);
+  }, [sensors]);
 
   return (
     <div className="flex flex-col h-full w-full relative bg-black">
@@ -176,7 +189,13 @@ export default function Mapa3D() {
         <PointLight color={colorHex} />
         
         {elevationMatrix ? (
-            <TerrainMesh matrix={elevationMatrix} minElevation={minElevation} maxElevation={maxElevation} autoRotate={true} />
+            <TerrainMesh 
+              matrix={elevationMatrix} 
+              minElevation={minElevation} 
+              maxElevation={maxElevation} 
+              autoRotate={true} 
+              onSelectSensor={setSelectedSensorId}
+            />
         ) : (
             <Terrain riskColor={colorHex} />
         )}
@@ -185,11 +204,21 @@ export default function Mapa3D() {
         
         {/* Render Floating Info Tooltips for each sensor */}
         {sensors.map(s => (
-           <SensorNode key={s.id} sensor={s} />
+           <SensorNode key={s.id} sensor={s} onSelect={setSelectedSensorId} />
         ))}
 
         <OrbitControls autoRotate autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 2 - 0.1} minDistance={10} maxDistance={40} />
       </Canvas>
+
+      {/* Telemetry Detail Sidebar */}
+      <AnimatePresence>
+        {selectedSensorId && (
+          <SensorSidebar
+            sensorId={selectedSensorId}
+            onClose={() => setSelectedSensorId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

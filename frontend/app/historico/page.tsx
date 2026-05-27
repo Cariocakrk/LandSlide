@@ -1,14 +1,36 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { History, FileDown, Filter } from 'lucide-react';
+import { History, FileDown, Filter, Lock } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAuthStore } from '@/store/authStore';
+import { AuthModal } from '@/components/AuthModal';
+import { motion } from 'framer-motion';
+
+export interface LogEntry {
+  id?: string;
+  createdAt: string;
+  soilMoisture: number;
+  terrainInclination: number;
+  rainVolume: number;
+  groundVibration: number;
+  risk: number;
+  statusColor: string;
+}
 
 export default function Historico() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const { user } = useAuthStore();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchHistory = async (p: number) => {
     setLoading(true);
@@ -31,7 +53,10 @@ export default function Historico() {
   };
 
   useEffect(() => {
-    fetchHistory(1);
+    const isOperator = useAuthStore.getState().user?.role === 'OPERATOR';
+    if (isOperator) {
+      fetchHistory(1);
+    }
   }, []);
 
   const downloadPDF = () => {
@@ -43,6 +68,48 @@ export default function Historico() {
     alert('Exportando Relatório Institucional em PDF...');
     link.remove();
   };
+
+  if (!mounted) return null; // Avoid hydration flash mismatch
+
+  const isOperator = user && user.role === 'OPERATOR';
+
+  if (!isOperator) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#020202] p-6 text-center select-none font-sans relative overflow-hidden h-screen w-full">
+        {/* Glow overlay */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-md bg-white/[0.01] border border-white/5 p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl flex flex-col items-center border-t-blue-500/20"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-4 shadow-inner">
+            <Lock className="w-7 h-7 animate-pulse" />
+          </div>
+          <h2 className="text-lg font-black text-white tracking-wide uppercase">Histórico Técnico Restrito</h2>
+          <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-1 uppercase">Credenciais de Operador Exigidas</p>
+          
+          <p className="text-xs text-gray-400 leading-relaxed mt-4 mb-6">
+            O banco de dados histórico do GeoShield Monitor contém as leituras consolidadas de sensores e relatórios institucionais. O acesso requer registro profissional.
+          </p>
+
+          <button
+            onClick={() => setAuthOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/15 cursor-pointer active:scale-95 transition-all"
+          >
+            Acessar com Cadastro
+          </button>
+        </motion.div>
+
+        <AuthModal 
+          isOpen={authOpen} 
+          onClose={() => setAuthOpen(false)} 
+          message="Faça login como operador de monitoramento para visualizar o histórico de telemetria geotécnica." 
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-10 max-w-7xl mx-auto w-full animate-in fade-in duration-700">

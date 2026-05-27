@@ -38,13 +38,47 @@ export const getElevationMatrix = async (lat: number, lon: number): Promise<{ ma
     for (let i = 0; i < size; i++) {
       let row: number[] = [];
       for (let j = 0; j < size; j++) {
-         // Create hills and valleys simulating topography
-         const elevation = baseAltitude 
-                         + noise(i, j, mapSeed) 
-                         + noise(i * 0.5, j * 0.5, mapSeed * 2) * 0.5
-                         + (Math.random() * 2); // fine detail
+         let elevation = baseAltitude 
+                          + noise(i, j, mapSeed) 
+                          + noise(i * 0.5, j * 0.5, mapSeed * 2) * 0.5;
          
-         row.push(Math.max(0, elevation)); // No negative altitudes
+         // Esculpir corpos d'água de forma limpa e plana
+         if (isSerrana) {
+           // Região Serrana (Petrópolis): Criar um rio sinuoso no meio do vale
+           const riverCenter = size / 2 + Math.sin(i * 0.25) * 8;
+           const distToRiver = Math.abs(j - riverCenter);
+           
+           if (distToRiver < 3.5) {
+             // Canal do rio profundo e plano
+             elevation = baseAltitude - roughness - 12; // 728
+           } else if (distToRiver < 6) {
+             // Margens do rio: rampa de transição suave
+             const t = (distToRiver - 3.5) / 2.5;
+             const riverFloor = baseAltitude - roughness - 12; // 728
+             const landElevation = Math.max(baseAltitude - roughness + 5, elevation); // Garante terra >= 745
+             elevation = riverFloor + t * (landElevation - riverFloor);
+           } else {
+             // Terra normal: garante que a montanha nunca afunde abaixo do vale do rio (mínimo 745)
+             elevation = Math.max(baseAltitude - roughness + 5, elevation) + (Math.random() * 1.5);
+           }
+         } else {
+           // Região Litorânea (São Sebastião): Criar oceano no terço esquerdo e rampa de praia
+           const oceanEnd = size / 3;
+           if (j < oceanEnd) {
+             // Oceano perfeitamente plano a nível zero
+             elevation = 0;
+           } else if (j < oceanEnd + 4) {
+             // Praia: rampa suave do oceano para a terra
+             const t = (j - oceanEnd) / 4;
+             const landBase = Math.max(5, elevation); // Garante terra >= 5
+             elevation = t * landBase;
+           } else {
+             // Terra normal: garante que a litorânea fique sempre acima do nível do mar (mínimo 5)
+             elevation = Math.max(5, elevation) + (Math.random() * 1.5);
+           }
+         }
+         
+         row.push(Math.max(0, elevation)); // Evitar altitudes negativas
       }
       matrix.push(row);
     }

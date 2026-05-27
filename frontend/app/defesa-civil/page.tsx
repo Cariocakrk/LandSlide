@@ -2,40 +2,61 @@
 
 import { useEffect, useState } from 'react';
 import { socket } from '@/lib/socket';
-import { ShieldAlert, CheckCircle2, Clock, ServerCrash } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Truck, Lock } from 'lucide-react';
+import { useTerrainStore } from '@/store/terrainStore';
+import { useAuthStore } from '@/store/authStore';
+import { AuthModal } from '@/components/AuthModal';
+import { motion } from 'framer-motion';
+
+export interface EmergencyProtocol {
+  id: string;
+  protocolCode: string;
+  riskLevel: number;
+  status: string;
+  description?: string | null;
+  createdAt: string;
+}
 
 export default function DefesaCivil() {
-  const [protocols, setProtocols] = useState<any[]>([]);
+  const [protocols, setProtocols] = useState<EmergencyProtocol[]>([]);
 
-  const fetchProtocols = async () => {
-    try {
-       const res = await fetch('http://localhost:3001/api/defense-protocols');
-       const data = await res.json();
-       if (Array.isArray(data)) {
-         setProtocols(data);
-       } else {
-         setProtocols([]);
-       }
-    } catch (e) {
-       console.error(e);
-       setProtocols([]);
-    }
-  };
+  const { user } = useAuthStore();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchProtocols = async () => {
+      try {
+         const res = await fetch('http://localhost:3001/api/defense-protocols');
+         const data = await res.json();
+         if (Array.isArray(data)) {
+           setProtocols(data);
+         } else {
+           setProtocols([]);
+         }
+      } catch (e) {
+         console.error(e);
+         setProtocols([]);
+      }
+    };
+
     fetchProtocols();
     
-    socket.on('emergencyAlert', (newAlert) => {
+    socket.on('emergencyAlert', (newAlert: EmergencyProtocol) => {
        // Play sound effect
        try {
          const audio = new Audio('/alert.mp3');
          audio.play().catch(() => {});
-       } catch(e) {}
+       } catch {}
        
        setProtocols(prev => [newAlert, ...prev]);
     });
 
-    socket.on('protocolUpdate', (updated) => {
+    socket.on('protocolUpdate', (updated: EmergencyProtocol) => {
        setProtocols(prev => prev.map(p => p.id === updated.id ? updated : p));
     });
     
@@ -45,6 +66,48 @@ export default function DefesaCivil() {
     }
   }, []);
 
+  if (!mounted) return null; // Avoid hydration flash mismatch
+
+  const isOperator = user && user.role === 'OPERATOR';
+
+  if (!isOperator) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#020202] p-6 text-center select-none font-sans relative overflow-hidden h-screen w-full">
+        {/* Glow overlay */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-md bg-white/[0.01] border border-white/5 p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl flex flex-col items-center border-t-blue-500/20"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-4 shadow-inner">
+            <Lock className="w-7 h-7 animate-pulse" />
+          </div>
+          <h2 className="text-lg font-black text-white tracking-wide uppercase">Operação de Despachos Restrita</h2>
+          <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-1 uppercase">Credenciais de Defesa Civil Exigidas</p>
+          
+          <p className="text-xs text-gray-400 leading-relaxed mt-4 mb-6">
+            O terminal da Defesa Civil permite o envio de chamados de veículo para resgate de moradores e despacho de alertas reais do WhatsApp. Esta área de comando exige login de monitor.
+          </p>
+
+          <button
+            onClick={() => setAuthOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/15 cursor-pointer active:scale-95 transition-all"
+          >
+            Acessar com Cadastro
+          </button>
+        </motion.div>
+
+        <AuthModal 
+          isOpen={authOpen} 
+          onClose={() => setAuthOpen(false)} 
+          message="Faça login como operador de monitoramento para acessar os chamados e despachos da Defesa Civil." 
+        />
+      </div>
+    );
+  }
+
   const updateStatus = async (id: string, newStatus: string) => {
     try {
       await fetch(`http://localhost:3001/api/defense-protocols/${id}/status`, {
@@ -52,13 +115,32 @@ export default function DefesaCivil() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
-    } catch(e) {}
+
+      // Disparar notificação e alerta de comunidade real/mock via WhatsApp ao autorizar despacho
+      if (newStatus === 'Equipe enviada') {
+        const protocol = protocols.find(p => p.id === id);
+        const activeLocation = useTerrainStore.getState().location || "Setor de Risco Serrante";
+        
+        await fetch('http://localhost:3001/api/alerts/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            protocolCode: protocol?.protocolCode || `DEF-AUTO-${Math.floor(Math.random() * 1000)}`,
+            cep: activeLocation, // Localidade ativa
+            channel: 'WhatsApp',
+            message: `[ALERTA URGENTE - DEFESA CIVIL]: Risco iminente confirmado para a região de ${activeLocation}. Viaturas enviadas para triagem. Evacue imediatamente a encosta e siga as orientações locais!`
+          })
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Finalizado': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
-      case 'Equipe enviada': return <ServerCrash className="w-5 h-5 text-orange-500" />;
+      case 'Equipe enviada': return <Truck className="w-5 h-5 text-orange-500" />;
       default: return <Clock className="w-5 h-5 text-yellow-500" />;
     }
   };

@@ -23,9 +23,20 @@ export function startSensorSimulation(io: Server) {
 
     switch (currentMode) {
       case 'normal':
-        soilMoisture = Math.max(10, Math.min(40, soilMoisture + noise()));
+        // Modelo de Inércia de Secagem (Evapotranspiração e Drenagem):
+        // Se a terra estiver saturada, ela escoa gradualmente (cai de 1% a 2.5% por intervalo de 2s)
+        if (soilMoisture > 40) {
+          soilMoisture = Math.max(40, soilMoisture - (1.2 + Math.random() * 1.0));
+        } else {
+          soilMoisture = Math.max(10, Math.min(40, soilMoisture + noise()));
+        }
         terrainInclination = Math.max(5, Math.min(15, terrainInclination + noise()));
-        rainVolume = Math.max(0, Math.min(20, rainVolume + noise()));
+        // A chuva acumulada também escoa/para de forma realista
+        if (rainVolume > 5) {
+          rainVolume = Math.max(0, rainVolume - (2.5 + Math.random() * 2.0));
+        } else {
+          rainVolume = Math.max(0, Math.min(20, rainVolume + noise()));
+        }
         groundVibration = Math.max(0, Math.min(10, groundVibration + noise()));
         break;
       case 'heavy_rain':

@@ -2,21 +2,40 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, CloudRain, ShieldAlert, Zap, Activity, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CloudRain, ShieldAlert, Zap, Activity, CheckCircle2, Lock } from 'lucide-react';
 import { socket } from '@/lib/socket';
 import { useTerrainStore } from '@/store/terrainStore';
+import { useAuthStore } from '@/store/authStore';
+import { AuthModal } from '@/components/AuthModal';
+
+export interface SimulationAlert {
+  id: string;
+  protocolCode: string;
+  riskLevel: number;
+  description: string;
+  status: string;
+  createdAt: string | Date;
+}
 
 export default function Simulacao() {
   const [loading, setLoading] = useState(false);
-  const [activeAlert, setActiveAlert] = useState<any>(null);
+  const [activeAlert, setActiveAlert] = useState<SimulationAlert | null>(null);
+
+  const { user } = useAuthStore();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    socket.on('emergencyAlert', (alert) => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    socket.on('emergencyAlert', (alert: SimulationAlert) => {
       setActiveAlert(alert);
       try {
         const audio = new Audio('/alert.mp3');
         audio.play().catch(() => {});
-      } catch(e) {}
+      } catch {}
     });
     return () => { socket.off('emergencyAlert'); }
   }, []);
@@ -36,7 +55,7 @@ export default function Simulacao() {
       // Update the Global Zustand System
       if (mode === 'normal') {
          setActiveAlert(null);
-         store.updateAllSensors({ soilMoisture: 40, rainVolume: 0, vibration: 0 }); // Restore normal metrics
+         store.restoreNormalConditions(); // Modelo de Inércia de Secagem Gradual
       } else if (mode === 'heavy_rain') {
          store.updateAllSensors({ rainVolume: 120, soilMoisture: 80 }); 
       } else if (mode === 'saturated_soil') {
@@ -47,7 +66,7 @@ export default function Simulacao() {
          store.updateAllSensors({ rainVolume: 150, soilMoisture: 100, vibration: 20 });
       }
 
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
@@ -62,11 +81,53 @@ export default function Simulacao() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: "Encaminhado" })
       });
-      setActiveAlert((prev: any) => ({ ...prev, status: "Encaminhado" }));
+      setActiveAlert((prev) => prev ? { ...prev, status: "Encaminhado" } : null);
     } catch (e) {
       console.error(e);
     }
   };
+
+  if (!mounted) return null; // Avoid hydration flash mismatch
+
+  const isOperator = user && user.role === 'OPERATOR';
+
+  if (!isOperator) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#020202] p-6 text-center select-none font-sans relative overflow-hidden h-screen w-full">
+        {/* Glow overlay */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
+
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 max-w-md bg-white/[0.01] border border-white/5 p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl flex flex-col items-center border-t-blue-500/20"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-4 shadow-inner">
+            <Lock className="w-7 h-7 animate-pulse" />
+          </div>
+          <h2 className="text-lg font-black text-white tracking-wide uppercase">Controle Operacional Restrito</h2>
+          <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-1 uppercase">Credenciais de Monitoramento Exigidas</p>
+          
+          <p className="text-xs text-gray-400 leading-relaxed mt-4 mb-6">
+            O painel de simulação geotécnica permite forçar intempéries físicas e emitir chamados para a Defesa Civil. Para evitar acionamentos acidentais e falsos alarmes, as chaves estão trancadas para visitantes.
+          </p>
+
+          <button
+            onClick={() => setAuthOpen(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/15 cursor-pointer active:scale-95 transition-all"
+          >
+            Acessar com Cadastro
+          </button>
+        </motion.div>
+
+        <AuthModal 
+          isOpen={authOpen} 
+          onClose={() => setAuthOpen(false)} 
+          message="Faça login como operador de monitoramento para liberar os comandos de simulação." 
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto w-full relative">
@@ -167,7 +228,7 @@ export default function Simulacao() {
                ALERTA ENVIADO
              </div>
              <p className="text-emerald-100 text-sm">
-               Protocolo <strong>{activeAlert.protocolCode}</strong> registrado com sucesso na central externa. Mudança de status para <span className="text-white font-medium">"Em análise"</span>.
+               Protocolo <strong>{activeAlert.protocolCode}</strong> registrado com sucesso na central externa. Mudança de status para <span className="text-white font-medium">&quot;Em análise&quot;</span>.
              </p>
            </motion.div>
         )}
@@ -176,27 +237,37 @@ export default function Simulacao() {
   );
 }
 
-function SimulationCard({ icon: Icon, title, desc, action, loading, color, delay }: any) {
-  const colorMap: any = {
+interface SimulationCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  action: () => void;
+  loading: boolean;
+  color: string;
+  delay: number;
+}
+
+function SimulationCard({ icon: Icon, title, desc, action, loading, color, delay }: SimulationCardProps) {
+  const colorMap: Record<string, string> = {
     blue: "hover:border-blue-500/50 hover:bg-blue-500/10 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]",
     cyan: "hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]",
     yellow: "hover:border-yellow-500/50 hover:bg-yellow-500/10 hover:shadow-[0_0_30px_rgba(234,179,8,0.15)]",
     red: "hover:border-red-500/50 hover:bg-red-500/10 hover:shadow-[0_0_30px_rgba(239,68,68,0.15)]"
   };
 
-  const iconColor: any = {
+  const iconColor: Record<string, string> = {
       blue: "text-blue-400",
       cyan: "text-cyan-400",
       yellow: "text-yellow-400",
       red: "text-red-500"
   };
 
-  const badgeObj: any = {
+  const badgeObj: Record<string, string> = {
      blue: "bg-blue-500/20",
      cyan: "bg-cyan-500/20",
      yellow: "bg-yellow-500/20",
      red: "bg-red-500/20"
-  }
+  };
 
   return (
     <motion.div 

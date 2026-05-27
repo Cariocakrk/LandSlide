@@ -13,6 +13,21 @@ export type Sensor = {
   futureRisk: number;       // 0-100 deterministic projected severity (6h)
 };
 
+export interface TerrainData {
+  location: string;
+  latitude: number;
+  longitude: number;
+  elevationMatrix: number[][];
+  minElevation: number;
+  maxElevation: number;
+}
+
+export interface SlopeData {
+  meanSlope: number;
+  maxSlope: number;
+  criticalAreas: number;
+}
+
 type TerrainState = {
   location: string | null;
   latitude: number | null;
@@ -20,19 +35,20 @@ type TerrainState = {
   elevationMatrix: number[][] | null;
   minElevation: number;
   maxElevation: number;
-  slopeData: { meanSlope: number; maxSlope: number; criticalAreas: number } | null;
+  slopeData: SlopeData | null;
   sensors: Sensor[];
   globalRisk: number;
 
   telemetryInterval: NodeJS.Timeout | null;
   weatherInterval: NodeJS.Timeout | null;
 
-  setTerrainData: (data: any, slopeData: any) => void;
+  setTerrainData: (data: TerrainData, slopeData: SlopeData) => void;
   setSensors: (sensors: Sensor[]) => void;
   updateSensor: (id: string, partial: Partial<Sensor>) => void;
   updateAllSensors: (partial: Partial<Sensor>) => void;
   recalculateGlobalRisk: () => void;
   clearTerrain: () => void;
+  restoreNormalConditions: () => void;
   fetchAndApplyWeather: () => Promise<void>;
 };
 
@@ -69,7 +85,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   telemetryInterval: null,
   weatherInterval: null,
 
-  setTerrainData: (data, slopeData) => {
+  setTerrainData: (data: TerrainData, slopeData: SlopeData) => {
     set({
       location: data.location,
       latitude: data.latitude,
@@ -200,11 +216,51 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
        location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0, 
        telemetryInterval: null, weatherInterval: null 
      });
+  },
+
+  restoreNormalConditions: () => {
+    // Inicia um decaimento progressivo simulando a lenta drenagem física e evapotranspiração do solo
+    const drainInterval = setInterval(() => {
+      let done = true;
+      set((state) => {
+        const updatedSensors = state.sensors.map((s) => {
+          let newMoisture = s.soilMoisture;
+          let newRain = s.rainVolume;
+          let newVib = s.vibration;
+
+          if (s.soilMoisture > 40) {
+            newMoisture = Math.max(40, s.soilMoisture - 1.5);
+            done = false;
+          }
+          if (s.rainVolume > 0) {
+            newRain = Math.max(0, s.rainVolume - 2.5);
+            done = false;
+          }
+          if (s.vibration > 0) {
+            newVib = Math.max(0, s.vibration - 0.5);
+            done = false;
+          }
+
+          const updated = { ...s, soilMoisture: newMoisture, rainVolume: newRain, vibration: newVib };
+          updated.localRisk = calcLocalRisk(updated);
+          updated.futureRisk = calculateFutureRisk(updated, newRain);
+          return updated;
+        });
+
+        return { sensors: updatedSensors };
+      });
+
+      get().recalculateGlobalRisk();
+
+      if (done) {
+        clearInterval(drainInterval);
+      }
+    }, 2000);
   }
 }));
 
 // Algorithm to place sensors prioritizing steep slopes or highest altitude variations
-export function generateOptimalSensors(matrix: number[][], slopeMap: any, maxSensors: number): Sensor[] {
+export function generateOptimalSensors(matrix: number[][], maxSensors: number): Sensor[] {
   if (!matrix || matrix.length === 0) return [];
 
   const rows = matrix.length;
@@ -277,6 +333,7 @@ export function generateOptimalSensors(matrix: number[][], slopeMap: any, maxSen
      };
      
      initSensor.localRisk = calcLocalRisk(initSensor);
+     initSensor.futureRisk = initSensor.localRisk; // Evitar exibição de 0% antes do primeiro poller de clima
      selectedSensors.push(initSensor);
   }
 
