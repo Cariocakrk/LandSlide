@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sphere } from '@react-three/drei';
+import { Sphere, Html } from '@react-three/drei';
+import { MapPin } from 'lucide-react';
 import * as THREE from 'three';
 import { useTerrainStore } from '@/store/terrainStore';
 
@@ -310,13 +311,16 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
       }
     }
   });
-
   const getSensorColor = (risk: number) => {
     if (risk > 70) return "#ef4444";
     if (risk > 40) return "#f97316";
     if (risk > 15) return "#eab308";
     return "#10b981";
   };
+
+  const centerHeight = matrix && matrix.length > 0
+    ? matrix[Math.floor(matrix.length / 2)][Math.floor(matrix[0].length / 2)] * 0.05
+    : 0;
 
   return (
     <group ref={groupRef}>
@@ -333,6 +337,9 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
           metalness={0.3}
         />
       </mesh>
+      
+      {/* Pin 3D destacado do endereço pesquisado no centro */}
+      {matrix && <AddressPin centerHeight={centerHeight} />}
       
       {/* Sensores ancorados visualmente pelo Raycaster */}
       {sensors.map((s) => {
@@ -365,6 +372,62 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
             </Sphere>
          );
       })}
+    </group>
+  );
+}
+
+// Sub-componente AddressPin 3D flutuante premium
+function AddressPin({ centerHeight }: { centerHeight: number }) {
+  const pinRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (pinRef.current) {
+      // Flutuação suave
+      pinRef.current.position.y = centerHeight + 0.4 + Math.sin(state.clock.getElapsedTime() * 3) * 0.1;
+      // Rotação suave do cabeçote
+      pinRef.current.rotation.y += 0.02;
+    }
+  });
+
+  return (
+    <group ref={pinRef} position={[0, centerHeight + 0.4, 0]}>
+      {/* Cabeça do Pin - Esfera Neon Azul Brilhante */}
+      <mesh castShadow>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshStandardMaterial 
+          color="#3b82f6" 
+          emissive="#3b82f6" 
+          emissiveIntensity={2} 
+          roughness={0.1}
+          metalness={0.9}
+        />
+      </mesh>
+      
+      {/* Corpo do Pin - Cone apontado para baixo */}
+      <mesh position={[0, -0.15, 0]} rotation={[Math.PI, 0, 0]}>
+        <coneGeometry args={[0.04, 0.2, 16]} />
+        <meshStandardMaterial 
+          color="#3b82f6" 
+          emissive="#3b82f6" 
+          emissiveIntensity={1}
+          roughness={0.1}
+          metalness={0.9}
+        />
+      </mesh>
+
+      {/* Anel Pulsante no Chão */}
+      <mesh position={[0, -0.28, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.1, 0.15, 32]} />
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.8} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Tooltip flutuante 2D */}
+      <Html position={[0, 0.5, 0]} center pointerEvents="none">
+        <div className="bg-blue-600/90 backdrop-blur-md border border-blue-400/30 text-white font-bold text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-full shadow-2xl flex items-center gap-1.5 whitespace-nowrap select-none animate-bounce">
+          <MapPin className="w-3 h-3 text-white" />
+          <span>Local Pesquisado</span>
+        </div>
+      </Html>
     </group>
   );
 }

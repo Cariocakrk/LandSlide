@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import { startSensorSimulation, setSimulationMode, SimulationMode } from './lib/mockSensors';
+import { initWhatsApp, getWhatsAppStatus, disconnectWhatsApp, sendWhatsAppMessage, setActiveTerrainCep, updateActiveSensor } from './lib/whatsapp';
 
 dotenv.config();
 
@@ -153,21 +154,28 @@ app.post('/api/defense-protocols/:id/status', async (req, res) => {
   }
 });
 
-import { getCoordinatesFromCEP } from './lib/geocoding';
+import { getCoordinatesFromCEP, getCoordinatesFromQuery } from './lib/geocoding';
 import { getElevationMatrix } from './lib/elevation';
 
-// 4. Módulo Gerador Topográfico por CEP
+// 4. Módulo Gerador Topográfico por CEP ou Endereço
 app.post('/api/generate-terrain', async (req, res) => {
   try {
-    const { cep } = req.body;
+    const { cep, query } = req.body;
+    const searchString = query || cep;
     
-    if (!cep || typeof cep !== 'string') {
-       return res.status(400).json({ error: 'Insira um CEP válido para gerar o terreno.' });
+    if (!searchString || typeof searchString !== 'string') {
+       return res.status(400).json({ error: 'Insira um CEP ou Endereço válido para gerar o terreno.' });
+    }
+
+    // Registrar o CEP se a entrada for um CEP válido (para o Bot do WhatsApp)
+    const isCep = /^\d{5}-?\d{3}$/.test(searchString.trim()) || /^\d{8}$/.test(searchString.trim());
+    if (isCep) {
+      setActiveTerrainCep(searchString);
     }
 
     // Passos arquitetônicos:
-    // 1. Converter CEP fornecido na localização real do usuário (Lat Long)
-    const { lat, lon, name } = await getCoordinatesFromCEP(cep);
+    // 1. Converter CEP ou Endereço na localização real do usuário (Lat Long)
+    const { lat, lon, name } = await getCoordinatesFromQuery(searchString);
     
     // 2. Extrair altitude geográfica do modelo DEM
     const { matrix, min, max } = await getElevationMatrix(lat, lon);
@@ -247,6 +255,9 @@ app.post('/api/sensor-data', async (req, res) => {
     if (!sensorId) {
       return res.status(400).json({ error: 'sensorId é obrigatório' });
     }
+
+    // Atualiza as medições dos sensores ativos no Bot do WhatsApp
+    updateActiveSensor({ sensorId, slope, moisture, rain, vibration, risk });
 
     const reading: SensorReading = {
       sensorId,
@@ -384,6 +395,16 @@ app.post('/api/alerts/dispatch', async (req, res) => {
 
     // Loop de disparo para todos os moradores da área afetada
     for (const phone of matchingPhones) {
+      // Tentar enviar via WhatsApp Web Bot Local primeiro
+      const sentViaLocalBot = await sendWhatsAppMessage(phone, alertMessage);
+      
+      if (sentViaLocalBot) {
+        console.log(`[Alert System] Alerta real enviado com sucesso para ${phone} via WhatsApp Web Bot Local!`);
+        continue;
+      }
+
+      console.log(`[Alert System] Bot local indisponível ou falhou para ${phone}. Tentando canais externos (Twilio/Meta)...`);
+
       if (twilioSid && twilioAuthToken) {
         try {
           console.log(`[Twilio WhatsApp] Disparando alerta REAL para o número: ${phone}...`);
@@ -465,14 +486,34 @@ app.get('/api/alerts', async (req, res) => {
   }
 });
 
+// WhatsApp Bot Endpoints
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json(getWhatsAppStatus());
+});
+
+app.post('/api/whatsapp/disconnect', async (req, res) => {
+  try {
+    await disconnectWhatsApp();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao desconectar o WhatsApp' });
+  }
+});
+
 // WebSocket Connection
 io.on('connection', (socket) => {
   console.log('[Socket] Client connected:', socket.id);
+
+  // Enviar status atual do WhatsApp para o cliente conectado
+  socket.emit('whatsapp-status', getWhatsAppStatus());
 
   socket.on('disconnect', () => {
     console.log('[Socket] Client disconnected:', socket.id);
   });
 });
+
+// Start WhatsApp Service
+initWhatsApp(io);
 
 // Start Simulation
 startSensorSimulation(io);

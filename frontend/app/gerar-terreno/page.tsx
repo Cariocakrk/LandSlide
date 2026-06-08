@@ -12,8 +12,8 @@ import { useTerrainStore, generateOptimalSensors } from "@/store/terrainStore";
 import { calculateSlope } from "@/lib/slopeCalculation";
 import { TerrainMesh } from "@/components/3d/TerrainMesh";
 
-const cepSchema = z.object({
-  cep: z.string().min(8, "CEP deve ter 8 dígitos").max(9, "Formato inválido")
+const searchSchema = z.object({
+  query: z.string().min(3, "Digite um CEP (8 dígitos) ou endereço completo (mínimo 3 caracteres).")
 });
 
 export default function GerarTerrenoPage() {
@@ -28,6 +28,8 @@ export default function GerarTerrenoPage() {
   const slopeData = useTerrainStore(state => state.slopeData);
   const globalRisk = useTerrainStore(state => state.globalRisk);
   const setSensors = useTerrainStore(state => state.setSensors);
+  const sensorsEnabled = useTerrainStore(state => state.sensorsEnabled);
+  const setSensorsEnabled = useTerrainStore(state => state.setSensorsEnabled);
 
   const terrainData = elevationMatrix ? {
      location,
@@ -41,28 +43,36 @@ export default function GerarTerrenoPage() {
   const [loading, setLoading] = useState(false);
   const [errorMSG, setErrorMSG] = useState("");
 
-  // Reatividade: Gerar sensores ao recarregar a malha e resetar os antigos
+  // Reatividade: Gerar sensores ao recarregar a malha e resetar os antigos se ativo
   useEffect(() => {
     if (elevationMatrix && slopeData) {
-       const optimalSensors = generateOptimalSensors(elevationMatrix, 5);
-       setSensors(optimalSensors);
+       if (sensorsEnabled) {
+          const optimalSensors = generateOptimalSensors(elevationMatrix, 5);
+          setSensors(optimalSensors);
+       } else {
+          setSensors([]);
+       }
     }
-  }, [elevationMatrix, slopeData, setSensors]);
+  }, [elevationMatrix, slopeData, sensorsEnabled, setSensors]);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
-    resolver: zodResolver(cepSchema)
+    resolver: zodResolver(searchSchema)
   });
 
-  const onSubmit = async (data: { cep: string }) => {
+  const onSubmit = async (data: { query: string }) => {
     setLoading(true);
     setErrorMSG("");
+    
+    // Preservar o estado do switch de sensoresEnabled
+    const currentSensorsEnabled = useTerrainStore.getState().sensorsEnabled;
     useTerrainStore.getState().clearTerrain();
+    useTerrainStore.getState().setSensorsEnabled(currentSensorsEnabled);
 
     try {
       const response = await fetch("http://localhost:3001/api/generate-terrain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cep: data.cep })
+        body: JSON.stringify({ query: data.query })
       });
 
       const result = await response.json();
@@ -98,41 +108,60 @@ export default function GerarTerrenoPage() {
         <header className="mb-4">
           <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
             <Mountain className="w-8 h-8 text-indigo-500" />
-            Topografia via CEP
+            Topografia via CEP/Endereço
           </h1>
-          <p className="text-gray-400 mt-2 text-sm">
-            Gere o modelo 3D altimétrico real da sua região inserindo um CEP válido. O sistema aplicará as leis da física computacional para prever desabamentos preventivamente com base na inclinação geográfica.
+          <p className="text-gray-400 mt-2 text-sm leading-relaxed">
+            Gere o modelo 3D altimétrico real da sua região inserindo um CEP ou Endereço completo. O sistema aplicará as leis da física computacional para prever desabamentos preventivamente.
           </p>
         </header>
 
         {/* Informação Academica */}
         <div className="bg-indigo-950/30 border border-indigo-500/30 p-4 rounded-xl text-sm text-indigo-200">
           <strong className="block text-indigo-400 mb-1">Diferencial Preventivo (TCC)</strong>
-          Em regiões com forte histórico de deslizamentos pluviais (como Petrópolis-RJ e São Sebastião-SP), algoritmos de modelagem de encostas (Slope Calculation) detectariam antecipadamente bolsões de risco acima de 30° graus. Digite um CEP serrano para simular.
+          Em regiões com histórico de deslizamentos, algoritmos de modelagem de encostas (Slope Calculation) detectam bolsões de risco acima de 25°. Digite um endereço serrano ou CEP para simular.
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl">
-          <label className="text-sm text-gray-400 font-semibold mb-2 block uppercase tracking-wider">Insira o CEP do Local</label>
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
-              <input 
-                {...register("cep")}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-600 font-mono"
-                placeholder="Ex: 25680-000"
-              />
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-black/40 backdrop-blur-md border border-white/10 p-6 rounded-2xl shadow-xl space-y-4">
+          <div>
+            <label className="text-sm text-gray-400 font-semibold mb-2 block uppercase tracking-wider">Insira o CEP ou Endereço</label>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <MapPin className="absolute left-3 top-3 w-5 h-5 text-gray-500" />
+                <input 
+                  {...register("query")}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-600 font-mono text-xs"
+                  placeholder="Rua Teresa, Petrópolis ou 25680-000"
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center shrink-0 disabled:opacity-50 cursor-pointer active:scale-95"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+              </button>
             </div>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+            {errors.query && <span className="text-red-400 text-xs mt-2 block font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {errors.query.message as string}</span>}
+            {errorMSG && <span className="text-red-400 text-xs mt-2 block font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {errorMSG}</span>}
+          </div>
+
+          {/* Toggle de Sensores Físicos IoT */}
+          <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-gray-200 uppercase tracking-wider">Simular Sensores Geotécnicos</span>
+              <span className="text-[10px] text-gray-500">Exibe e envia telemetria física local (IoT)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSensorsEnabled(!sensorsEnabled)}
+              className={`w-11 h-6 rounded-full p-1 transition-colors duration-300 focus:outline-none ${sensorsEnabled ? 'bg-indigo-600' : 'bg-white/10 border border-white/10'}`}
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+              <div
+                className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${sensorsEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+              />
             </button>
           </div>
-          {errors.cep && <span className="text-red-400 text-xs mt-2 block font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {errors.cep.message as string}</span>}
-          {errorMSG && <span className="text-red-400 text-xs mt-2 block font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> {errorMSG}</span>}
         </form>
 
         {/* Dados Pós-Pesquisa */}

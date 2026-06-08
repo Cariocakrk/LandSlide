@@ -38,12 +38,16 @@ type TerrainState = {
   slopeData: SlopeData | null;
   sensors: Sensor[];
   globalRisk: number;
+  sensorsEnabled: boolean;
+  rainVolume: number;
+  humidity: number;
 
   telemetryInterval: NodeJS.Timeout | null;
   weatherInterval: NodeJS.Timeout | null;
 
   setTerrainData: (data: TerrainData, slopeData: SlopeData) => void;
   setSensors: (sensors: Sensor[]) => void;
+  setSensorsEnabled: (enabled: boolean) => void;
   updateSensor: (id: string, partial: Partial<Sensor>) => void;
   updateAllSensors: (partial: Partial<Sensor>) => void;
   recalculateGlobalRisk: () => void;
@@ -82,6 +86,9 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   slopeData: null,
   sensors: [],
   globalRisk: 0,
+  sensorsEnabled: true,
+  rainVolume: 0,
+  humidity: 0,
   telemetryInterval: null,
   weatherInterval: null,
 
@@ -98,33 +105,40 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   },
 
   fetchAndApplyWeather: async () => {
-    const { latitude, longitude, sensors } = get();
-    if (!latitude || !longitude || sensors.length === 0) return;
+    const { latitude, longitude, sensorsEnabled } = get();
+    if (!latitude || !longitude) return;
 
     try {
       const resp = await fetch(`http://localhost:3001/api/weather/${latitude}/${longitude}`);
       const weatherData = await resp.json();
 
       if (weatherData && weatherData.accumulatedRain6h !== undefined) {
-         set((state) => {
-            const upSensors = state.sensors.map(s => {
-               // Combine incoming weather to physical sensors logic
-               const newRain = weatherData.accumulatedRain6h;
-               // Average out ambient humidity affecting ground moisture slightly
-               const newMoisture = Math.min(s.soilMoisture + (weatherData.avgHumidity6h * 0.2), 100);
-
-               const updated = { 
-                 ...s, 
-                 rainVolume: newRain, 
-                 soilMoisture: newMoisture 
-               };
-
-               updated.localRisk = calcLocalRisk(updated);
-               updated.futureRisk = calculateFutureRisk(updated, newRain);
-               return updated;
-            });
-            return { sensors: upSensors };
+         const newRain = weatherData.accumulatedRain6h;
+         const newHumidity = weatherData.avgHumidity6h;
+         
+         set({
+           rainVolume: newRain,
+           humidity: newHumidity
          });
+
+         if (sensorsEnabled && get().sensors.length > 0) {
+            set((state) => {
+               const upSensors = state.sensors.map(s => {
+                  const newMoisture = Math.min(s.soilMoisture + (newHumidity * 0.2), 100);
+
+                  const updated = { 
+                    ...s, 
+                    rainVolume: newRain, 
+                    soilMoisture: newMoisture 
+                  };
+
+                  updated.localRisk = calcLocalRisk(updated);
+                  updated.futureRisk = calculateFutureRisk(updated, newRain);
+                  return updated;
+               });
+               return { sensors: upSensors };
+            });
+         }
          get().recalculateGlobalRisk();
       }
     } catch(e) {
@@ -133,11 +147,16 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   },
 
   setSensors: (sensors: Sensor[]) => {
-    // Limpar intervals antigos se existirem
     const currentTelemetry = get().telemetryInterval;
     const currentWeather = get().weatherInterval;
     if (currentTelemetry) clearInterval(currentTelemetry);
     if (currentWeather) clearInterval(currentWeather);
+
+    if (!get().sensorsEnabled) {
+      set({ sensors: [] });
+      get().recalculateGlobalRisk();
+      return;
+    }
 
     set({ sensors });
     get().recalculateGlobalRisk();
@@ -170,13 +189,42 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     set({ telemetryInterval: newTelemetry, weatherInterval: newWeatherInterval });
   },
 
+  setSensorsEnabled: (enabled: boolean) => {
+    set({ sensorsEnabled: enabled });
+    if (enabled) {
+      const matrix = get().elevationMatrix;
+      if (matrix) {
+        const optimalSensors = generateOptimalSensors(matrix, 5);
+        get().setSensors(optimalSensors);
+      }
+    } else {
+      const currentTelemetry = get().telemetryInterval;
+      const currentWeather = get().weatherInterval;
+      if (currentTelemetry) clearInterval(currentTelemetry);
+      if (currentWeather) clearInterval(currentWeather);
+      
+      set({ 
+        sensors: [], 
+        telemetryInterval: null, 
+        weatherInterval: null 
+      });
+      get().recalculateGlobalRisk();
+      
+      // Iniciar poller apenas de clima a cada 30 min
+      const newWeatherInterval = setInterval(() => {
+         get().fetchAndApplyWeather();
+      }, 1800000);
+      set({ weatherInterval: newWeatherInterval });
+      get().fetchAndApplyWeather();
+    }
+  },
+
   updateSensor: (id, partial) => {
     set((state) => {
       const updatedSensors = state.sensors.map((s) => {
         if (s.id !== id) return s;
         const updated = { ...s, ...partial };
         updated.localRisk = calcLocalRisk(updated);
-        // maintain projected risk recalculation
         updated.futureRisk = calculateFutureRisk(updated, updated.rainVolume);
         return updated;
       });
@@ -200,9 +248,18 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
 
   recalculateGlobalRisk: () => {
     set((state) => {
-      if (state.sensors.length === 0) return { globalRisk: 0 };
-      const total = state.sensors.reduce((acc, curr) => acc + curr.localRisk, 0);
-      return { globalRisk: Math.round(total / state.sensors.length) };
+      if (state.sensorsEnabled && state.sensors.length > 0) {
+        const total = state.sensors.reduce((acc, curr) => acc + curr.localRisk, 0);
+        return { globalRisk: Math.round(total / state.sensors.length) };
+      } else {
+        const slopeVal = state.slopeData?.meanSlope || 0;
+        const slopeRiskWeight = (slopeVal / 45) * 40;
+        const rainRiskWeight = Math.min(state.rainVolume / 80, 1) * 40;
+        const humidityRiskWeight = (state.humidity / 100) * 20;
+        
+        const calculatedRisk = Math.min(100, Math.round(slopeRiskWeight + rainRiskWeight + humidityRiskWeight));
+        return { globalRisk: calculatedRisk };
+      }
     });
   },
 
@@ -214,7 +271,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
      
      set({ 
        location: null, elevationMatrix: null, slopeData: null, sensors: [], globalRisk: 0, 
-       telemetryInterval: null, weatherInterval: null 
+       telemetryInterval: null, weatherInterval: null, rainVolume: 0, humidity: 0
      });
   },
 

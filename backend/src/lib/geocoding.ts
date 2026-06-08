@@ -67,3 +67,46 @@ export const getCoordinatesFromCEP = async (cep: string) => {
     throw new Error('Falha ao processar provedor de Geocoding Externo.');
   }
 };
+
+export const getCoordinatesFromQuery = async (query: string) => {
+  const cleanQuery = query.trim();
+  if (!cleanQuery) throw new Error('Query de pesquisa vazia');
+
+  // Se for CEP (formato 12345-678 ou 12345678)
+  const isCep = /^\d{5}-?\d{3}$/.test(cleanQuery) || /^\d{8}$/.test(cleanQuery);
+  if (isCep) {
+    return getCoordinatesFromCEP(cleanQuery);
+  }
+
+  // Se for endereço comum, buscar direto no Nominatim
+  if (cache.has(cleanQuery)) {
+    return cache.get(cleanQuery)!;
+  }
+
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search`;
+    const nomRes = await axios.get(nominatimUrl, {
+      params: { q: cleanQuery, format: 'json', limit: 1 },
+      headers: {
+        'User-Agent': 'Landslide-Monitor-TCC/1.0'
+      }
+    });
+
+    if (!nomRes.data || nomRes.data.length === 0) {
+      throw new Error('Endereço não encontrado');
+    }
+
+    const result = {
+      lat: parseFloat(nomRes.data[0].lat),
+      lon: parseFloat(nomRes.data[0].lon),
+      name: nomRes.data[0].display_name
+    };
+
+    cache.set(cleanQuery, result);
+    return result;
+  } catch (error: any) {
+    if (error.message.includes('não encontrado')) throw error;
+    throw new Error('Falha ao processar provedor de Geocoding Externo.');
+  }
+};
+

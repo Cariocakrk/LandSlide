@@ -137,7 +137,7 @@ function PointLight({ color }: { color: string }) {
 }
 
 export default function Mapa3D() {
-  const { location, elevationMatrix, minElevation, maxElevation, globalRisk, sensors } = useTerrainStore();
+  const { location, elevationMatrix, minElevation, maxElevation, globalRisk, sensors, sensorsEnabled } = useTerrainStore();
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
 
   const colorHex = useMemo(() => {
@@ -158,8 +158,15 @@ export default function Mapa3D() {
           <Map className="w-5 h-5 text-blue-400" /> Visão Topográfica
         </h1>
         {location ? (
-           <div className="flex items-center gap-2 text-emerald-400 text-xs mb-4 uppercase tracking-widest font-bold">
-               <MapPin className="w-4 h-4" /> {location}
+           <div className="mb-4">
+             <div className="flex items-center gap-2 text-emerald-400 text-xs uppercase tracking-widest font-bold">
+                 <MapPin className="w-4 h-4" /> {location}
+             </div>
+             {!sensorsEnabled && (
+                <div className="text-[9px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-md w-fit uppercase font-semibold font-mono tracking-wider mt-2">
+                  📡 Sem Sensores (Via Satélite)
+                </div>
+             )}
            </div>
         ) : (
            <p className="text-sm text-yellow-500/80 mb-4 bg-yellow-500/10 p-2 rounded border border-yellow-500/20">
@@ -171,13 +178,13 @@ export default function Mapa3D() {
           <div className="flex gap-3">
              <div className="w-4 h-4 rounded-full shadow-inner ring-2 ring-black flex-shrink-0 transition-colors duration-1000 mt-1" style={{ backgroundColor: colorHex }} />
              <div>
-               <div className="text-xs text-gray-400 uppercase font-semibold">Risco Geral</div>
-               <div className="text-lg font-black text-white">{globalRisk}/100</div>
+                <div className="text-xs text-gray-400 uppercase font-semibold">Risco Geral</div>
+                <div className="text-lg font-black text-white">{globalRisk}/100</div>
              </div>
           </div>
           <div>
              <div className="text-xs text-gray-400 uppercase font-semibold text-right">Sensores</div>
-             <div className="text-lg font-black text-blue-400 text-right">{sensors.length}</div>
+             <div className="text-lg font-black text-blue-400 text-right">{sensorsEnabled ? sensors.length : 0}</div>
           </div>
         </div>
       </div>
@@ -203,7 +210,7 @@ export default function Mapa3D() {
         <Rain isRaining={isRaining} />
         
         {/* Render Floating Info Tooltips for each sensor */}
-        {sensors.map(s => (
+        {sensorsEnabled && sensors.map(s => (
            <SensorNode key={s.id} sensor={s} onSelect={setSelectedSensorId} />
         ))}
 
