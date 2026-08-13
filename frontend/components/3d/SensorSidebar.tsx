@@ -10,6 +10,7 @@ import {
 import { useTerrainStore } from '@/store/terrainStore';
 import { useAuthStore } from '@/store/authStore';
 import { socket } from '@/lib/socket';
+import { apiFetch } from '@/lib/api';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
   Tooltip, CartesianGrid 
@@ -49,7 +50,7 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
 
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/sensor-history/${sensorId}`);
+        const res = await apiFetch(`/api/sensor-history/${sensorId}`);
         const data = await res.json();
         
         if (Array.isArray(data) && data.length > 0) {

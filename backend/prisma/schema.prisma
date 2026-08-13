@@ -15,11 +15,14 @@ model User {
   role        String   @default("OPERATOR")
   phoneNumber String?
   cep         String?
-  createdAt   DateTime @default(now())
+  twoFactorCode    String?
+  twoFactorExpires DateTime?
+  createdAt        DateTime @default(now())
 }
 
 model SensorData {
   id                 String   @id @default(uuid())
+  sensorId           String?  // Identificador do sensor IoT
   soilMoisture       Float
   terrainInclination Float
   rainVolume         Float
@@ -30,22 +33,24 @@ model SensorData {
 }
 
 model EmergencyProtocol {
-  id           String   @id @default(uuid())
-  protocolCode String   @unique // Generated unique protocol
+  id           String          @id @default(uuid())
+  protocolCode String          @unique // Generated unique protocol
   riskLevel    Int
-  status       String   @default("Em análise") // "Em análise", "Equipe enviada", "Finalizado"
+  status       String          @default("Em análise") // "Em análise", "Equipe enviada", "Finalizado"
   description  String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
+  alerts       AlertDispatch[]
 }
 
 model AlertDispatch {
-  id           String   @id @default(uuid())
+  id           String            @id @default(uuid())
   protocolCode String
   cep          String
   numResidents Int
-  channel      String   // "WhatsApp" | "SMS"
-  status       String   // "ENVIADO" | "FALHOU"
+  channel      String            // "WhatsApp" | "SMS"
+  status       String            // "ENVIADO" | "FALHOU"
   message      String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime          @default(now())
+  protocol     EmergencyProtocol @relation(fields: [protocolCode], references: [protocolCode])
 }
 

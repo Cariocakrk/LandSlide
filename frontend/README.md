@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GeoShield Monitor — Painel de Controle (Frontend)
 
-## Getting Started
+Este é o painel de visualização e monitoramento em tempo real do sistema GeoShield Monitor, desenvolvido em Next.js (React) e Tailwind CSS.
 
-First, run the development server:
+## 🛠️ Tecnologias Utilizadas
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16 (App Router):** Roteamento moderno de páginas.
+- **React 19:** Biblioteca principal para renderização de interfaces.
+- **React Three Fiber & Drei (Three.js):** Para renderização acelerada por hardware do terreno topográfico 3D das encostas.
+- **Zustand:** Gerenciamento de estado global de sensores, relevo e autenticação.
+- **Recharts:** Gráficos interativos para telemetria em tempo real.
+- **Framer Motion:** Animações fluidas de transição e modais.
+- **Tailwind CSS 4:** Estilização de componentes e layouts.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Execução em Desenvolvimento
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Crie o arquivo `.env` copiando de `.env.example` para configurar a URL do backend:
+   ```env
+   NEXT_PUBLIC_API_URL="http://localhost:3001"
+   ```
+2. Instale as dependências:
+   ```bash
+   npm install
+   ```
+3. Inicialize o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
+4. Acesse em seu navegador: **http://localhost:3000**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📂 Organização das Páginas
 
-## Learn More
+- `/app/page.tsx` — Página inicial de apresentação e atalhos rápidos.
+- `/app/dashboard/page.tsx` — Dashboard geral de telemetria das encostas.
+- `/app/gerar-terreno/page.tsx` — Formulário de geocodificação por CEP/Endereço, estimativa de declividade e exibição 3D do terreno.
+- `/app/mapa-3d/page.tsx` — Visualizador 3D do relevo e sensores IoT ativos.
+- `/app/simulacao/page.tsx` — Console de simulação de cenários climáticos/estruturais de caos.
+- `/app/defesa-civil/page.tsx` — Console da Defesa Civil contendo a lista de chamados ativos e disparos de alertas no WhatsApp.
+- `/app/historico/page.tsx` — Log de telemetria paginado com gráficos de tendência histórica.
 
-To learn more about Next.js, take a look at the following resources:
+## 📡 Cliente API Centralizado (`frontend/lib/api.ts`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Todas as chamadas REST utilizam o cliente `apiFetch` que:
+- Resolve dinamicamente a URL a partir de `NEXT_PUBLIC_API_URL`.
+- Injeta automaticamente o cabeçalho `Authorization: Bearer <token>` de forma transparente para requisições que necessitam de privilégios de operador.
+- Adiciona o cabeçalho `Content-Type: application/json` quando apropriado.

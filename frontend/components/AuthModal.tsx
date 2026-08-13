@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ShieldAlert, X, Loader2, CheckCircle2, AlertCircle, Phone, Home } from 'lucide-react';
+import { Mail, Lock, User, ShieldAlert, X, Loader2, CheckCircle2, AlertCircle, Phone, Home, KeyRound } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { apiFetch } from '@/lib/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,6 +21,11 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [cep, setCep] = useState('');
   
+  // Estados para o fluxo 2FA
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -32,18 +38,48 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
     setError(null);
     setSuccess(null);
 
-    const url = activeTab === 'login' 
-      ? 'http://localhost:3001/api/auth/login'
-      : 'http://localhost:3001/api/auth/register';
+    // Se estivermos no fluxo de verificação 2FA
+    if (twoFactorRequired) {
+      try {
+        const res = await apiFetch('/api/auth/verify-2fa', {
+          method: 'POST',
+          body: JSON.stringify({ code: twoFactorCode, tempToken })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Código inválido ou expirado');
+        }
+
+        loginStore(data.user, data.token);
+        setSuccess('Autenticação confirmada! Carregando painel...');
+        setTimeout(() => {
+          setSuccess(null);
+          setTwoFactorRequired(false);
+          setTwoFactorCode('');
+          setTempToken('');
+          onClose();
+        }, 1500);
+      } catch (err: any) {
+        setError(err.message || 'Erro ao validar o código 2FA');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    const path = activeTab === 'login' 
+      ? '/api/auth/login'
+      : '/api/auth/register';
 
     const body = activeTab === 'login'
       ? { email, password }
       : { name, email, password, role, phoneNumber, cep };
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(path, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
@@ -54,12 +90,20 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
       }
 
       if (activeTab === 'login') {
-        loginStore(data.user, data.token);
-        setSuccess('Acesso concedido! Carregando painel...');
-        setTimeout(() => {
-          setSuccess(null);
-          onClose();
-        }, 1500);
+        // Se o backend exigir verificação de 2 fatores
+        if (data.twoFactorRequired) {
+          setTwoFactorRequired(true);
+          setTempToken(data.tempToken);
+          setSuccess('Código de 2 fatores enviado para seu e-mail!');
+          setTimeout(() => setSuccess(null), 3000);
+        } else {
+          loginStore(data.user, data.token);
+          setSuccess('Acesso concedido! Carregando painel...');
+          setTimeout(() => {
+            setSuccess(null);
+            onClose();
+          }, 1500);
+        }
       } else {
         setSuccess('Cadastro concluído com sucesso! Agora você pode fazer login.');
         setActiveTab('login');
@@ -74,6 +118,14 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReset = () => {
+    setTwoFactorRequired(false);
+    setTwoFactorCode('');
+    setTempToken('');
+    setError(null);
+    setSuccess(null);
   };
 
   return (
@@ -110,45 +162,51 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
               {/* Logo / Header */}
               <div className="flex flex-col items-center mb-6 text-center">
                 <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-3 shadow-inner">
-                  <ShieldAlert className="w-6 h-6 animate-pulse" />
+                  {twoFactorRequired ? (
+                    <KeyRound className="w-6 h-6 animate-pulse" />
+                  ) : (
+                    <ShieldAlert className="w-6 h-6 animate-pulse" />
+                  )}
                 </div>
                 <h3 className="text-xl font-black text-white tracking-wide">
-                  Central GeoShield Monitor
+                  {twoFactorRequired ? 'Confirmação de Identidade' : 'Central GeoShield Monitor'}
                 </h3>
                 <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-mono">
-                  Painel de Controle e Monitoramento
+                  {twoFactorRequired ? 'Código de 2 fatores (2FA)' : 'Painel de Controle e Monitoramento'}
                 </p>
 
-                {message && (
+                {message && !twoFactorRequired && (
                   <div className="mt-3 text-xs text-yellow-500/90 bg-yellow-500/5 border border-yellow-500/10 p-2.5 rounded-lg leading-relaxed max-w-xs font-sans">
                     ⚠️ {message}
                   </div>
                 )}
               </div>
 
-              {/* Tabs Toggle */}
-              <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-6">
-                <button
-                  onClick={() => { setActiveTab('login'); setError(null); setSuccess(null); }}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'login' 
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Entrar (Login)
-                </button>
-                <button
-                  onClick={() => { setActiveTab('register'); setError(null); setSuccess(null); }}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'register' 
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  Cadastrar
-                </button>
-              </div>
+              {/* Tabs Toggle (Hidden if 2FA is active) */}
+              {!twoFactorRequired && (
+                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-6">
+                  <button
+                    onClick={() => { setActiveTab('login'); setError(null); setSuccess(null); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'login' 
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Entrar (Login)
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('register'); setError(null); setSuccess(null); }}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'register' 
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Cadastrar
+                  </button>
+                </div>
+              )}
 
               {/* Status Feedbacks */}
               {error && (
@@ -166,121 +224,148 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
 
               {/* Interactive Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {activeTab === 'register' && (
-                  <>
-                    {/* Perfil de Cadastro Toggle */}
+                {twoFactorRequired ? (
+                  /* 2FA Code Form Input */
+                  <div className="space-y-4">
+                    <p className="text-xs text-gray-400 leading-relaxed text-center font-sans">
+                      Enviamos um código de segurança de 6 dígitos para o e-mail <strong>{email}</strong>. Insira o código abaixo para prosseguir:
+                    </p>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Tipo de Cadastro</label>
-                      <div className="flex bg-[#0a0a0c] p-1 rounded-xl border border-white/5 gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setRole('OPERATOR')}
-                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
-                            role === 'OPERATOR' 
-                              ? 'bg-white/10 text-white border border-white/10' 
-                              : 'text-gray-500 hover:text-gray-400'
-                          }`}
-                        >
-                          Operador Civil
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRole('USER')}
-                          className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
-                            role === 'USER' 
-                              ? 'bg-white/10 text-white border border-white/10' 
-                              : 'text-gray-500 hover:text-gray-400'
-                          }`}
-                        >
-                          Morador (Alertas)
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Nome Completo</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Código de Verificação</label>
+                      <div className="relative flex justify-center">
+                        <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
                         <input 
                           type="text" 
                           required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder={role === 'OPERATOR' ? "Ex: Dr. Carlos Silva" : "Ex: Maria de Oliveira"}
-                          className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                          maxLength={6}
+                          value={twoFactorCode}
+                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Digite os 6 dígitos"
+                          className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans text-center tracking-[10px] text-lg font-bold"
                         />
                       </div>
                     </div>
-                  </>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
-                    <input 
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={role === 'OPERATOR' ? "seu.nome@geoshield.gov" : "seu.email@provedor.com"}
-                      className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
-                    />
                   </div>
-                </div>
-
-                {activeTab === 'register' && (
+                ) : (
+                  /* Standard Login/Register Inputs */
                   <>
+                    {activeTab === 'register' && (
+                      <>
+                        {/* Perfil de Cadastro Toggle */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Tipo de Cadastro</label>
+                          <div className="flex bg-[#0a0a0c] p-1 rounded-xl border border-white/5 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setRole('OPERATOR')}
+                              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
+                                role === 'OPERATOR' 
+                                  ? 'bg-white/10 text-white border border-white/10' 
+                                  : 'text-gray-500 hover:text-gray-400'
+                              }`}
+                            >
+                              Operador Civil
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRole('USER')}
+                              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
+                                role === 'USER' 
+                                  ? 'bg-white/10 text-white border border-white/10' 
+                                  : 'text-gray-500 hover:text-gray-400'
+                              }`}
+                            >
+                              Morador (Alertas)
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Nome Completo</label>
+                          <div className="relative">
+                            <User className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <input 
+                              type="text" 
+                              required
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              placeholder={role === 'OPERATOR' ? "Ex: Dr. Carlos Silva" : "Ex: Maria de Oliveira"}
+                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                        WhatsApp (DDD + Número) {role === 'USER' ? '*' : '(Opcional)'}
-                      </label>
+                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail</label>
                       <div className="relative">
-                        <Phone className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                        <Mail className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
                         <input 
-                          type="tel" 
-                          required={role === 'USER'}
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          placeholder="Ex: 5524998887766"
+                          type="email" 
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder={role === 'OPERATOR' ? "seu.nome@geoshield.gov" : "seu.email@provedor.com"}
                           className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
                         />
                       </div>
                     </div>
 
+                    {activeTab === 'register' && (
+                      <>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                            WhatsApp (DDD + Número) {role === 'USER' ? '*' : '(Opcional)'}
+                          </label>
+                          <div className="relative">
+                            <Phone className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <input 
+                              type="tel" 
+                              required={role === 'USER'}
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              placeholder="Ex: 5524998887766"
+                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                            CEP de Residência {role === 'USER' ? '*' : '(Opcional)'}
+                          </label>
+                          <div className="relative">
+                            <Home className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <input 
+                              type="text" 
+                              required={role === 'USER'}
+                              value={cep}
+                              onChange={(e) => setCep(e.target.value)}
+                              placeholder="Ex: 25680-000"
+                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                        CEP de Residência {role === 'USER' ? '*' : '(Opcional)'}
-                      </label>
+                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Senha de Segurança</label>
                       <div className="relative">
-                        <Home className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                        <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
                         <input 
-                          type="text" 
-                          required={role === 'USER'}
-                          value={cep}
-                          onChange={(e) => setCep(e.target.value)}
-                          placeholder="Ex: 25680-000"
+                          type="password" 
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
                           className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
                         />
                       </div>
                     </div>
                   </>
                 )}
-
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Senha de Segurança</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
-                    <input 
-                      type="password" 
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
-                    />
-                  </div>
-                </div>
 
                 {/* Submit Action */}
                 <button
@@ -292,24 +377,37 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" /> Processando...
                     </>
+                  ) : twoFactorRequired ? (
+                    'Confirmar Código 2FA'
                   ) : activeTab === 'login' ? (
                     'Entrar na Central'
                   ) : (
                     'Finalizar Cadastro'
                   )}
                 </button>
+
+                {/* Voltar ao Login option for 2FA */}
+                {twoFactorRequired && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="w-full text-center text-[10px] text-gray-500 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Voltar para o Login
+                  </button>
+                )}
               </form>
 
-              {/* Informative Footer */}
-              <div className="mt-6 border-t border-white/5 pt-4 text-center">
-                <span className="text-[10px] text-gray-500 leading-normal block">
-                  Acesso livre para consulta pública básica. Cadastro de moradores permite receber alertas funcionais de deslizamento direto via WhatsApp para o seu CEP residencial no TCC.
-                </span>
-              </div>
+            {/* Informative Footer */}
+            <div className="mt-6 border-t border-white/5 pt-4 text-center">
+              <span className="text-[10px] text-gray-500 leading-normal block">
+                Acesso livre para consulta pública básica. Cadastro de moradores permite receber alertas funcionais de deslizamento direto via WhatsApp para o seu CEP residencial no TCC.
+              </span>
             </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
+          </div>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
+);
 }

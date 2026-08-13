@@ -23,10 +23,18 @@ export const getElevationMatrix = async (lat: number, lon: number): Promise<{ ma
     const size = 64; // Grid size for the 3D plane
     let matrix: number[][] = [];
     
-    // Procedural terrain generation based on coordinates (Simulating real DEM)
-    // If the region is Petrópolis (-22.5, -43.1) it generates steeper mountains
     const isSerrana = lat < -22.0 && lat > -24.0 && lon > -45.0 && lon < -43.0;
-    const baseAltitude = isSerrana ? 800 : 10;
+    let baseAltitude = isSerrana ? 800 : 10;
+    try {
+      // Obter a altitude geográfica real usando a API pública Open-Meteo
+      const response = await axios.get(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+      if (response.data && Array.isArray(response.data.elevation) && response.data.elevation[0] !== undefined) {
+        baseAltitude = response.data.elevation[0];
+        console.log(`[Elevation] Altitude geográfica real obtida via Open-Meteo para a coordenada (${lat}, ${lon}): ${baseAltitude}m`);
+      }
+    } catch (apiErr) {
+      console.warn('[Elevation] Falha ao obter altitude real do Open-Meteo. Usando fallback aproximado.', apiErr);
+    }
     const roughness = isSerrana ? 60 : 15;
     
     const noise = (x: number, y: number, randomSeed: number) => {

@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { AuthModal } from '@/components/AuthModal';
 import { motion } from 'framer-motion';
+import { apiFetch } from '@/lib/api';
 
 export interface LogEntry {
   id?: string;
@@ -35,7 +36,7 @@ export default function Historico() {
   const fetchHistory = async (p: number) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/history?page=${p}`);
+      const res = await apiFetch(`/api/history?page=${p}`);
       const data = await res.json();
       if (data && Array.isArray(data.data)) {
         setLogs(data.data);

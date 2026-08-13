@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import { apiFetch } from '@/lib/api';
 import { socket } from '@/lib/socket';
 import { Terminal, ShieldAlert, ChevronDown, ChevronUp, BellRing, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,7 +27,7 @@ export function LiveAlertLogs() {
     // 1. Carregar histórico inicial do banco SQLite
     const loadInitialDispatches = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/alerts');
+        const res = await apiFetch('/api/alerts');
         const data = await res.json();
         if (Array.isArray(data)) {
           setLogs(data.reverse()); // Ordena para os mais recentes no final (estilo terminal)

@@ -7,6 +7,7 @@ import { socket } from '@/lib/socket';
 import { useTerrainStore } from '@/store/terrainStore';
 import { useAuthStore } from '@/store/authStore';
 import { AuthModal } from '@/components/AuthModal';
+import { apiFetch } from '@/lib/api';
 
 export interface SimulationAlert {
   id: string;
@@ -44,9 +45,8 @@ export default function Simulacao() {
     setLoading(true);
     try {
       // API call to register log in backend + dispatch sockets to other clients
-      await fetch('http://localhost:3001/api/simulation/mode', {
+      await apiFetch('/api/simulation/mode', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode })
       });
       
@@ -76,9 +76,8 @@ export default function Simulacao() {
   const sendToCivilDefense = async () => {
     if (!activeAlert) return;
     try {
-      await fetch(`http://localhost:3001/api/defense-protocols/${activeAlert.id}/status`, {
+      await apiFetch(`/api/defense-protocols/${activeAlert.id}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: "Encaminhado" })
       });
       setActiveAlert((prev) => prev ? { ...prev, status: "Encaminhado" } : null);

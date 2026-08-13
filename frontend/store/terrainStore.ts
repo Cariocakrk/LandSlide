@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '@/lib/api';
 
 export type Sensor = {
   id: string;
@@ -109,7 +110,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     if (!latitude || !longitude) return;
 
     try {
-      const resp = await fetch(`http://localhost:3001/api/weather/${latitude}/${longitude}`);
+      const resp = await apiFetch(`/api/weather/${latitude}/${longitude}`);
       const weatherData = await resp.json();
 
       if (weatherData && weatherData.accumulatedRain6h !== undefined) {
@@ -165,9 +166,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     const newTelemetry = setInterval(() => {
        const currentSensors = get().sensors;
        currentSensors.forEach(sensor => {
-          fetch('http://localhost:3001/api/sensor-data', {
+          apiFetch('/api/sensor-data', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               sensorId: sensor.id,
               slope: sensor.terrainInclination,

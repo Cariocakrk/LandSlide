@@ -7,6 +7,7 @@ import { useTerrainStore } from '@/store/terrainStore';
 import { useAuthStore } from '@/store/authStore';
 import { AuthModal } from '@/components/AuthModal';
 import { motion } from 'framer-motion';
+import { apiFetch } from '@/lib/api';
 
 export interface EmergencyProtocol {
   id: string;
@@ -39,7 +40,7 @@ export default function DefesaCivil() {
   useEffect(() => {
     const fetchWaInitialStatus = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/whatsapp/status');
+        const res = await apiFetch('/api/whatsapp/status');
         const data = await res.json();
         setWaStatus(data.status);
         if (data.qr) setWaQr(data.qr);
@@ -54,7 +55,7 @@ export default function DefesaCivil() {
   useEffect(() => {
     const fetchProtocols = async () => {
       try {
-         const res = await fetch('http://localhost:3001/api/defense-protocols');
+         const res = await apiFetch('/api/defense-protocols');
          const data = await res.json();
          if (Array.isArray(data)) {
            setProtocols(data);
@@ -118,7 +119,7 @@ export default function DefesaCivil() {
       try {
         setWaStatus('CONNECTING');
         setWaLoadingMsg('Desconectando...');
-        const res = await fetch('http://localhost:3001/api/whatsapp/disconnect', {
+        const res = await apiFetch('/api/whatsapp/disconnect', {
           method: 'POST'
         });
         const data = await res.json();
@@ -178,9 +179,8 @@ export default function DefesaCivil() {
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
-      await fetch(`http://localhost:3001/api/defense-protocols/${id}/status`, {
+      await apiFetch(`/api/defense-protocols/${id}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
 
@@ -189,9 +189,8 @@ export default function DefesaCivil() {
         const protocol = protocols.find(p => p.id === id);
         const activeLocation = useTerrainStore.getState().location || "Setor de Risco Serrante";
         
-        await fetch('http://localhost:3001/api/alerts/dispatch', {
+        await apiFetch('/api/alerts/dispatch', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             protocolCode: protocol?.protocolCode || `DEF-AUTO-${Math.floor(Math.random() * 1000)}`,
             cep: activeLocation, // Localidade ativa
@@ -216,7 +215,7 @@ export default function DefesaCivil() {
   const createManualAlert = async () => {
     try {
       if (confirm('Atenção: Tem certeza que deseja disparar um Alerta Manual sem medição dos sensores?')) {
-        await fetch('http://localhost:3001/api/defense-protocols/mock', {
+        await apiFetch('/api/defense-protocols/mock', {
           method: 'POST',
         });
       }

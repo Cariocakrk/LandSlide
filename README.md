@@ -19,24 +19,33 @@ npm install
 ```
 
 **Banco de Dados:**  
-Acesse o arquivo `backend/.env` (crie se não existir) e adicione a string de conexão do PostgreSQL que você vai usar:
+O projeto vem configurado de fábrica com **SQLite** local (arquivo `dev.db`), facilitando a execução imediata sem necessidade de instalar banco de dados externo ou Docker.
+Para configurar, acesse o arquivo `backend/.env` (crie copiando de `.env.example`) e configure:
 ```env
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/geotcc"
-JWT_SECRET="sua_chave_segura"
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="dev_secret_key"
 ```
 
-**Sincronizar:**
-Execute o comando abaixo para gerar as tabelas de Histórico e Usuários:
+**Sincronizar e Inicializar:**
+Gere e execute as migrações locais com o comando:
 ```bash
-npx prisma db push
-npx prisma generate
+npx prisma migrate dev --name init
+```
+
+**Executar testes unitários:**
+Você pode rodar os testes unitários do backend com:
+```bash
+npm run test
 ```
 
 **Executar servidor (Rodará na porta 3001):**
-Se necessário, instale globalmente o `ts-node` e `nodemon`, ou simplesmente execute:
+Para inicializar o servidor em desenvolvimento:
 ```bash
-npx ts-node src/server.ts
+npm run dev
 ```
+
+**Importar Rotas da API:**
+Importe o arquivo `backend/insomnia.json` no Insomnia para obter todas as 15 rotas REST organizadas e prontas para uso.
 
 ### 2️⃣ Iniciar o Painel de Controle (Frontend)
 Em uma janela de terminal nova (paralela a do backend), acesse o ambiente React:

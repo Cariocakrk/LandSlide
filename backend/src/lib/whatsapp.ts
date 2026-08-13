@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { getCoordinatesFromCEP } from './geocoding';
 import { getElevationMatrix } from './elevation';
 import axios from 'axios';
+import fs from 'fs';
 
 const prisma = new PrismaClient();
 
@@ -59,24 +60,30 @@ export function initWhatsApp(io: any) {
   currentStatus = 'CONNECTING';
   io.emit('whatsapp-status', { status: currentStatus });
 
+  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const puppeteerOptions: any = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-default-apps',
+      '--mute-audio',
+      '--no-default-browser-check'
+    ]
+  };
+
+  if (fs.existsSync(chromePath)) {
+    puppeteerOptions.executablePath = chromePath;
+  }
+
   client = new Client({
     authStrategy: new LocalAuth({
       dataPath: './.wwebjs_auth'
     }),
-    puppeteer: {
-      headless: true,
-      executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-extensions',
-        '--disable-default-apps',
-        '--mute-audio',
-        '--no-default-browser-check'
-      ]
-    }
+    puppeteer: puppeteerOptions
   });
 
   client.on('qr', async (qr) => {

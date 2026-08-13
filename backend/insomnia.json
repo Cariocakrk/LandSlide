@@ -1,0 +1,280 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-08-13T13:40:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_1",
+      "parentId": null,
+      "modified": 1723556400000,
+      "created": 1723556400000,
+      "name": "GeoShield Monitor API",
+      "description": "API do Sistema Inteligente Preventivo de Deslizamentos",
+      "scope": "design",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_1",
+      "parentId": "wrk_1",
+      "modified": 1723556400000,
+      "created": 1723556400000,
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3001"
+      },
+      "dataPropertyOrder": {
+        "&": ["base_url"]
+      },
+      "color": null,
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_dev",
+      "parentId": "env_1",
+      "modified": 1723556400000,
+      "created": 1723556400000,
+      "name": "Development",
+      "data": {
+        "base_url": "http://localhost:3001"
+      },
+      "dataPropertyOrder": null,
+      "color": "#7d69cb",
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "fld_auth",
+      "parentId": "wrk_1",
+      "name": "Autenticação",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_register",
+      "parentId": "fld_auth",
+      "url": "{{ _.base_url }}/api/auth/register",
+      "name": "Cadastrar Usuário",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Operador Defesa Civil\",\n  \"email\": \"operador@geoshield.gov\",\n  \"password\": \"senha123\",\n  \"role\": \"OPERATOR\",\n  \"phoneNumber\": \"5524999999999\",\n  \"cep\": \"25680000\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_login",
+      "parentId": "fld_auth",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "name": "Fazer Login",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"operador@geoshield.gov\",\n  \"password\": \"senha123\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "fld_telemetry",
+      "parentId": "wrk_1",
+      "name": "Telemetria e Sensores",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_history",
+      "parentId": "fld_telemetry",
+      "url": "{{ _.base_url }}/api/history?page=1",
+      "name": "Listar Histórico Paginado",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_sensor_data",
+      "parentId": "fld_telemetry",
+      "url": "{{ _.base_url }}/api/sensor-data",
+      "name": "Enviar Telemetria IoT",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sensorId\": \"IOT-Z4A2\",\n  \"slope\": 15,\n  \"moisture\": 45.2,\n  \"rain\": 12,\n  \"vibration\": 1.4,\n  \"risk\": 22\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_sensor_history",
+      "parentId": "fld_telemetry",
+      "url": "{{ _.base_url }}/api/sensor-history/IOT-Z4A2",
+      "name": "Obter Histórico em Memória do Sensor",
+      "method": "GET",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_defense",
+      "parentId": "wrk_1",
+      "name": "Defesa Civil",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_get_protocols",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/defense-protocols",
+      "name": "Listar Chamados",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_mock_protocol",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/defense-protocols/mock",
+      "name": "Criar Chamado Manual",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_update_protocol_status",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/defense-protocols/PROTOCOL_ID_HERE/status",
+      "name": "Atualizar Status do Chamado",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"status\": \"Equipe enviada\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_dispatch_alert",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/alerts/dispatch",
+      "name": "Disparar Alerta Comunitário",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"protocolCode\": \"DEF-123456\",\n  \"cep\": \"25680000\",\n  \"numResidents\": 1200,\n  \"channel\": \"WhatsApp\",\n  \"message\": \"Alerta crítico de deslizamento. Evacue a área!\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_alerts",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/alerts",
+      "name": "Listar Histórico de Disparos",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_simulation",
+      "parentId": "wrk_1",
+      "name": "Simulador",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_simulation_mode",
+      "parentId": "fld_simulation",
+      "url": "{{ _.base_url }}/api/simulation/mode",
+      "name": "Alterar Modo de Simulação",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"mode\": \"critical_risk\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "fld_utils",
+      "parentId": "wrk_1",
+      "name": "Utilidades e Bot WhatsApp",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_gen_terrain",
+      "parentId": "fld_utils",
+      "url": "{{ _.base_url }}/api/generate-terrain",
+      "name": "Gerar Terreno por CEP/Endereço",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"cep\": \"25680-000\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_weather",
+      "parentId": "fld_utils",
+      "url": "{{ _.base_url }}/api/weather/-22.508/-43.178",
+      "name": "Obter Clima da Coordenada",
+      "method": "GET",
+      "_type": "request"
+    },
+    {
+      "_id": "req_wa_status",
+      "parentId": "fld_utils",
+      "url": "{{ _.base_url }}/api/whatsapp/status",
+      "name": "Obter Status do Bot WhatsApp",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_wa_disconnect",
+      "parentId": "fld_utils",
+      "url": "{{ _.base_url }}/api/whatsapp/disconnect",
+      "name": "Desconectar Sessão WhatsApp",
+      "method": "POST",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+        }
+      ],
+      "_type": "request"
+    }
+  ]
+}

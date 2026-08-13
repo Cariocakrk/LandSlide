@@ -11,6 +11,7 @@ import { MapPin, Mountain, AlertTriangle, ShieldCheck, Search, Loader2 } from "l
 import { useTerrainStore, generateOptimalSensors } from "@/store/terrainStore";
 import { calculateSlope } from "@/lib/slopeCalculation";
 import { TerrainMesh } from "@/components/3d/TerrainMesh";
+import { apiFetch } from "@/lib/api";
 
 const searchSchema = z.object({
   query: z.string().min(3, "Digite um CEP (8 dígitos) ou endereço completo (mínimo 3 caracteres).")
@@ -69,9 +70,8 @@ export default function GerarTerrenoPage() {
     useTerrainStore.getState().setSensorsEnabled(currentSensorsEnabled);
 
     try {
-      const response = await fetch("http://localhost:3001/api/generate-terrain", {
+      const response = await apiFetch("/api/generate-terrain", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: data.query })
       });
 
