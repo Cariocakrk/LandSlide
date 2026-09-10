@@ -16,15 +16,30 @@ function lat2tile(lat: number, zoom: number): number {
   return (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom);
 }
 
-function loadTileImage(x: number, y: number, z: number): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
+function loadTileImage(x: number, y: number, z: number): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const subdomains = ['a', 'b', 'c', 'd'];
+    const s = subdomains[Math.abs(x + y) % subdomains.length];
     const img = new Image();
-    img.crossOrigin = 'anonymous'; // Prevent CORS security issues with WebGL textures
-    // Using CartoDB Dark Matter (dark basemap) so streets are light lines on black
-    // This allows us to make the street lines glow brilliantly using an emissive map!
-    img.src = `https://basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
+    img.crossOrigin = 'anonymous';
+    // CartoDB Voyager: mapa viário com ruas de alto contraste e nomes legíveis
+    img.src = `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load tile: ${z}/${x}/${y}`));
+    img.onerror = () => {
+      // Fallback 1: CartoDB dark_all
+      const darkImg = new Image();
+      darkImg.crossOrigin = 'anonymous';
+      darkImg.src = `https://${s}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
+      darkImg.onload = () => resolve(darkImg);
+      darkImg.onerror = () => {
+        // Fallback 2: OpenStreetMap
+        const osmImg = new Image();
+        osmImg.crossOrigin = 'anonymous';
+        osmImg.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+        osmImg.onload = () => resolve(osmImg);
+        osmImg.onerror = () => resolve(null);
+      };
+    };
   });
 }
 
@@ -41,7 +56,7 @@ async function generateStitchedMap(lat: number, lon: number, zoom: number = 15, 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2D context');
 
-  const promises: Promise<{ img: HTMLImageElement; dx: number; dy: number }>[] = [];
+  const promises: Promise<{ img: HTMLImageElement | null; dx: number; dy: number }>[] = [];
   for (let dy = 0; dy < 3; dy++) {
     for (let dx = 0; dx < 3; dx++) {
       promises.push(
@@ -52,15 +67,10 @@ async function generateStitchedMap(lat: number, lon: number, zoom: number = 15, 
 
   const loadedTiles = await Promise.all(promises);
   for (const { img, dx, dy } of loadedTiles) {
-    ctx.drawImage(img, dx * 256, dy * 256);
+    if (img) {
+      ctx.drawImage(img, dx * 256, dy * 256);
+    }
   }
-
-  // Adicionar um overlay translúcido extremamente sutil (5% opacidade) sobre a textura escura.
-  // Isso garante que a montanha continue muito escura, elegante e confortável,
-  // enquanto as cores dos picos e ladeiras aparecem apenas como um leve sopro de cor
-  // translúcido para facilitar a identificação da elevação tridimensional.
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-  ctx.fillRect(0, 0, 768, 768);
 
   const outCanvas = document.createElement('canvas');
   outCanvas.width = size;
@@ -71,17 +81,33 @@ async function generateStitchedMap(lat: number, lon: number, zoom: number = 15, 
   const pixelOffsetX = (centerX - baseTileX) * 256;
   const pixelOffsetY = (centerY - baseTileY) * 256;
 
-  // Physical scale alignment: Map the dynamic geographic size based on 30m resolution grid
-  const radians = lat * Math.PI / 180;
+  const radians = (lat * Math.PI) / 180;
   const tileWidthMeters = (40075016 * Math.cos(radians)) / Math.pow(2, zoom);
-  const gridWidthMeters = 63 * 30; // 63 cells * 30 meters
+  const gridWidthMeters = 1400; // ~1.4km de amplitude topográfica
   const numTilesCovered = gridWidthMeters / tileWidthMeters;
-  const cropSize = Math.round(numTilesCovered * 256);
+  const cropSize = Math.max(100, Math.min(768, Math.round(numTilesCovered * 256)));
 
-  const startX = pixelOffsetX - (cropSize / 2);
-  const startY = pixelOffsetY - (cropSize / 2);
+  const startX = Math.max(0, Math.min(768 - cropSize, Math.round(pixelOffsetX - cropSize / 2)));
+  const startY = Math.max(0, Math.min(768 - cropSize, Math.round(pixelOffsetY - cropSize / 2)));
 
   outCtx.drawImage(canvas, startX, startY, cropSize, cropSize, 0, 0, size, size);
+
+  // Traçar grade topográfica elegante com linhas azuis translúcidas sobre o mapa viário
+  outCtx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+  outCtx.lineWidth = 1.5;
+  const step = size / 24;
+  for (let p = 0; p <= size; p += step) {
+    outCtx.beginPath();
+    outCtx.moveTo(p, 0);
+    outCtx.lineTo(p, size);
+    outCtx.stroke();
+
+    outCtx.beginPath();
+    outCtx.moveTo(0, p);
+    outCtx.lineTo(size, p);
+    outCtx.stroke();
+  }
+
   return outCanvas;
 }
 
@@ -163,16 +189,16 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const range = maxElevation - minElevation || 1;
         const normalizedH = (elevation - minElevation) / range;
 
-        // Se for corpo d'água (oceanos, praias ou vales de rios profundos), achatamos a elevação
-        // para que a água fique perfeitamente plana, lisa e sem ruídos/pontas na renderização
-        const isWater = normalizedH < 0.05;
+        // Se for oceano ou nível do mar real (elevação <= 0), achatamos a elevação
+        const isWater = elevation <= 0 || (minElevation <= 0 && normalizedH < 0.03);
         if (isWater) {
           waterIndices.push(j);
         }
         const finalElevation = isWater ? minElevation : elevation;
 
-        // Escala vertical proporcional ao relevo real (desnível em metros)
-        const normalizedY = ((finalElevation - minElevation) / range) * Math.min(3.0, Math.max(0.4, (range / 50)));
+        // Escala vertical proporcional e esteticamente clara do relevo (desnível em metros)
+        const vScale = Math.min(3.5, Math.max(0.9, range / 30));
+        const normalizedY = ((finalElevation - minElevation) / range) * vScale;
 
         // PlaneGeometry nativo tem dimensões 10x10. Calculamos matematicamente X e Y originais
         // com base nos índices de linha r e coluna c, tornando a deformação totalmente stateless e imune a re-renders.
@@ -196,24 +222,17 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
 
         // Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT):
-        // Encostas com declividade acentuada (> 25° e > 35°) são as zonas reais de ruptura potencial
         if (isWater) {
-          // Azul/Ciano brilhante para corpos d'água (completamente plano)
           colorInstance.setHSL(0.58, 1.0, 0.45);
         } else if (isCritical) {
-          // Modo de desastre: encostas críticas em vermelho puro
           colorInstance.setHSL(slopeDeg > 20 ? 0.0 : 0.08, 1.0, 0.5);
         } else if (slopeDeg < 15) {
-          // Verde seguro (Platô / Planície / Encosta suave estável)
           colorInstance.setHSL(0.33, 0.9, 0.45);
         } else if (slopeDeg < 25) {
-          // Amarelo atenção (Declividade moderada)
           colorInstance.setHSL(0.14, 1.0, 0.5);
         } else if (slopeDeg < 35) {
-          // Laranja alerta (Encosta crítica em equilíbrio-limite)
           colorInstance.setHSL(0.06, 1.0, 0.5);
         } else {
-          // Vermelho emergência (Escarpa íngreme de alta suscetibilidade de ruptura)
           colorInstance.setHSL(0.0, 1.0, 0.5);
         }
         
@@ -223,7 +242,6 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
       waterIndicesRef.current = waterIndices;
       geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
       geometry.computeVertexNormals();
-      // OBRIGATÓRIO PARA RAYCASTER: atualizar caixas de contorno
       geometry.computeBoundingBox();
       geometry.computeBoundingSphere();
       geometry.attributes.position.needsUpdate = true;
@@ -231,30 +249,33 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
     }
   }, [matrix, minElevation, maxElevation, isCritical]);
 
+  // Atualizar textura de ruas no material do Three.js quando o CanvasTexture for gerado
+  useEffect(() => {
+    if (planeRef.current && planeRef.current.material) {
+      const mat = planeRef.current.material as THREE.MeshStandardMaterial;
+      mat.map = streetTexture;
+      mat.needsUpdate = true;
+    }
+  }, [streetTexture]);
+
   // Posicionar os sensores visualmente via Raycaster após deformação
   useEffect(() => {
     if (!planeRef.current || sensors.length === 0) return;
 
-    // Aguardar o frame de update da geometria para o Raycaster ler a malha deformada
     setTimeout(() => {
        if (!planeRef.current) return;
        
        const raycaster = new THREE.Raycaster();
        const updatedPositions: Record<string, THREE.Vector3> = {};
 
-       const sensorRadius = 0.15; // Usado no Sphere args=[0.15]
+       const sensorRadius = 0.15;
        const sensorHeight = sensorRadius * 2;
 
        sensors.forEach((s) => {
-          // Origem local (sempre paralela à malha, independente da rotação em andamento do grupo vindo do useFrame)
           const localOrigin = new THREE.Vector3(s.position.x, 1000, s.position.y);
           const localDirection = new THREE.Vector3(0, -1, 0);
 
-          // Raycaster requer vetores no World Space, então convertemos mantendo o rastreio
           const originWorld = planeRef.current!.localToWorld(localOrigin.clone());
-          
-          // O vetor direção no World Space é calculado pegando um segundo ponto abaixo dele no Local Space, e traduzindo
-          // para calcularmos exatamente a flecha geométrica apontada para a malha em translação
           const pointBelowLocal = localOrigin.clone().add(localDirection);
           const pointBelowWorld = planeRef.current!.localToWorld(pointBelowLocal);
           const directionWorld = pointBelowWorld.sub(originWorld).normalize();
@@ -265,23 +286,17 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
 
           if (intersects.length > 0) {
              const intersect = intersects[0];
-             const point = intersect.point.clone(); // World space point
+             const point = intersect.point.clone();
 
-             // Ajuste Avançado: Usar a normal da face para apoiar perfeitamente na ladeira
              if (intersect.face) {
                  const normal = intersect.face.normal.clone();
                  normal.transformDirection(planeRef.current!.matrixWorld);
-                 
-                 // Adiciona a metade da altura exata projetada na normal do triângulo
                  point.add(normal.multiplyScalar(sensorHeight / 2));
              } else {
-                 // Fallback vertical simples
                  point.y += (sensorHeight / 2);
              }
 
-             // Conversão de volta para o Local Space garante que eles rotacionem junto com a Malha no Grupo Pai
              planeRef.current!.worldToLocal(point);
-
              updatedPositions[s.id] = point;
           }
        });
@@ -293,10 +308,9 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
 
   useFrame((state) => {
     if (groupRef.current && autoRotate) {
-       groupRef.current.rotation.y -= 0.001; // Rotaciona o grupo todo (Malha + Sensores)
+       groupRef.current.rotation.y -= 0.001;
     }
 
-    // Animates the river and ocean vertices with a gorgeous flowing pulse
     if (planeRef.current && waterIndicesRef.current.length > 0) {
       const geometry = planeRef.current.geometry;
       const colorsAttr = geometry.getAttribute('color');
@@ -304,18 +318,13 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const colors = colorsAttr.array as Float32Array;
         const time = state.clock.getElapsedTime();
         const cols = matrix?.[0]?.length || 64;
-        
         const colorInstance = new THREE.Color();
         
         waterIndicesRef.current.forEach((j) => {
           const r = Math.floor(j / cols);
           const c = j % cols;
-          
-          // Onda progressiva que simula o fluxo da água correndo tridimensionalmente pela malha
           const flowWave = Math.sin(time * 5.0 - (r + c) * 0.25);
           const pulse = 0.45 + flowWave * 0.20;
-          
-          // Azul ciano neon vibrante pulsante com variação sutil de matiz baseada na posição do grid
           colorInstance.setHSL(0.56 + Math.cos(time + r * 0.05) * 0.02, 1.0, pulse);
           
           colors[j * 3] = colorInstance.r;
@@ -327,6 +336,7 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
       }
     }
   });
+
   const getSensorColor = (risk: number) => {
     if (risk > 70) return "#ef4444";
     if (risk > 40) return "#f97316";
@@ -334,26 +344,40 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
     return "#10b981";
   };
 
-  const centerHeight = matrix && matrix.length > 0
-    ? matrix[Math.floor(matrix.length / 2)][Math.floor(matrix[0].length / 2)] * 0.05
-    : 0;
+  const range = maxElevation - minElevation || 1;
+  const centerElev = matrix && matrix.length > 0
+    ? matrix[Math.floor(matrix.length / 2)][Math.floor(matrix[0].length / 2)]
+    : minElevation;
+  const vScale = Math.min(3.5, Math.max(0.9, range / 30));
+  const centerHeight = ((centerElev - minElevation) / range) * vScale;
 
   return (
     <group ref={groupRef}>
+      {/* Terreno Sólido com Mapa Viário e Cores de Risco Geotécnico */}
       <mesh ref={planeRef}>
         <planeGeometry args={[10, 10, matrix?.length ? matrix[0].length - 1 : 63, matrix?.length ? matrix.length - 1 : 63]} />
         <meshStandardMaterial 
           vertexColors 
           map={streetTexture || undefined}
-          emissiveMap={streetTexture || undefined}
-          emissive={new THREE.Color('#ffffff')}
-          emissiveIntensity={3.5}
           wireframe={false} 
-          roughness={0.4}
-          metalness={0.3}
+          roughness={0.7}
+          metalness={0.1}
         />
       </mesh>
       
+      {/* Malha Topográfica 3D (Wireframe Grid com linhas de relevo) */}
+      {planeRef.current && (
+        <mesh geometry={planeRef.current.geometry} position={[0, 0.006, 0]}>
+          <meshBasicMaterial 
+            wireframe 
+            color={isCritical ? "#ef4444" : "#38bdf8"} 
+            transparent 
+            opacity={0.32} 
+            depthTest={true}
+          />
+        </mesh>
+      )}
+
       {/* Pin 3D destacado do endereço pesquisado no centro */}
       {matrix && <AddressPin centerHeight={centerHeight} />}
       
