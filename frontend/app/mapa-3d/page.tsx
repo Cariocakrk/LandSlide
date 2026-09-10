@@ -101,18 +101,18 @@ function SensorNode({ sensor, onSelect }: { sensor: Sensor; onSelect: (id: strin
          onMouseEnter={() => setHovered(true)}
          onMouseLeave={() => setHovered(false)}
          onClick={() => onSelect(sensor.id)}
-         className={`transition-all duration-300 pointer-events-auto cursor-pointer ${hovered ? 'scale-105 opacity-100 z-50' : 'scale-90 opacity-60'}`}
+         className={`transition-all duration-300 pointer-events-auto cursor-pointer ${hovered ? 'scale-105 opacity-100 z-50' : 'scale-90 opacity-75'}`}
        >
-          <div className="bg-black/85 backdrop-blur-md text-white p-3 rounded-xl border border-white/20 shadow-2xl min-w-[150px] hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all">
-             <div className="font-bold border-b border-white/20 pb-1 mb-2 text-sm flex items-center justify-between gap-1">
-               <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-blue-400" /> {sensor.id}</span>
-               <span className="text-[9px] px-1.5 bg-white/10 rounded text-gray-400 font-mono uppercase tracking-wide">IoT</span>
+          <div className="bg-black/85 backdrop-blur-md text-white p-3 rounded-xl border border-white/20 shadow-2xl min-w-[170px] hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all font-sans">
+             <div className="font-bold border-b border-white/20 pb-1 mb-2 text-xs flex items-center justify-between gap-1">
+               <span className="flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5 text-blue-400" /> {sensor.id}</span>
+               <span className="text-[9px] px-1.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded font-mono uppercase tracking-wide">{sensor.riskLevelCode || 'GEO'}</span>
              </div>
-             <div className="text-xs space-y-1">
-               <div>Risco Local: <strong className="text-white">{sensor.localRisk}/100</strong></div>
-               <div>Umidade: <strong className="text-white">{sensor.soilMoisture.toFixed(0)}%</strong></div>
-               <div>Inclinação: <strong className="text-white">{sensor.terrainInclination.toFixed(0)}°</strong></div>
-               <div>Vibração: <strong className="text-white">{sensor.vibration.toFixed(0)} Hz</strong></div>
+             <div className="text-[11px] space-y-1 font-mono">
+               <div>Fator Seg: <strong className={sensor.safetyFactor && sensor.safetyFactor < 1.3 ? "text-orange-400" : "text-emerald-400"}>{sensor.safetyFactor >= 99 ? 'Estável' : `FS ${sensor.safetyFactor}`}</strong></div>
+               <div>Declividade: <strong className="text-white">{sensor.terrainInclination.toFixed(1)}°</strong></div>
+               <div>Saturação: <strong className="text-white">{sensor.soilMoisture.toFixed(0)}%</strong></div>
+               <div>Chuva 72h: <strong className="text-cyan-400">{sensor.rainVolume.toFixed(0)} mm</strong></div>
              </div>
              <div className="mt-2 text-[9px] text-blue-400 text-center uppercase tracking-wider font-bold">
                Clique para Inspecionar

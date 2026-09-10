@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { AuthModal } from '@/components/AuthModal';
+import { socket } from '@/lib/socket';
 
 const links = [
   { name: 'Visão Geral', href: '/', icon: Home, restricted: false },
@@ -30,10 +31,23 @@ export function Sidebar() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | undefined>(undefined);
   const [mounted, setMounted] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   // Avoid dehydration mismatch
   useEffect(() => {
     setMounted(true);
+    setIsConnected(socket.connected);
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
   }, []);
 
   const handleLinkClick = (e: React.MouseEvent, href: string, restricted: boolean) => {
@@ -148,8 +162,12 @@ export function Sidebar() {
           </div>
         )}
         
-        <div className="text-center text-[9px] text-gray-600 font-mono mt-3 uppercase tracking-widest">
-          GeoShield Monitor v1.0.0
+        <div className="flex items-center justify-between text-[9px] text-gray-500 font-mono mt-3 px-1">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-amber-500'}`} />
+            <span className="text-[9px]">{isConnected ? 'SISTEMA ONLINE' : 'TELEMETRIA LOCAL'}</span>
+          </div>
+          <span className="text-gray-600 font-bold">v2.0 TCC</span>
         </div>
       </div>
 

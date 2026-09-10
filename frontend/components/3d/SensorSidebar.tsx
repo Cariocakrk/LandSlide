@@ -183,8 +183,8 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
             </div>
-            <div className="text-[10px] text-gray-500 font-mono flex items-center gap-1 uppercase">
-              <Radio className="w-3 h-3 text-emerald-400 animate-pulse" /> Telemetria IoT Online
+            <div className="text-[10px] text-gray-400 font-mono flex items-center gap-1 uppercase">
+              <Radio className="w-3 h-3 text-emerald-400 animate-pulse" /> Estação Geotécnica Ativa
             </div>
           </div>
         </div>
@@ -198,19 +198,19 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
-        {/* Status Badge & Power */}
+        {/* Status Badge & Safety Factor */}
         <div className="grid grid-cols-2 gap-3">
           <div className={`border p-4 rounded-xl flex flex-col justify-between shadow-lg ${riskDetails.color}`}>
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Status de Risco</span>
-            <span className="text-xl font-black mt-1">{riskDetails.label}</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Risco CPRM</span>
+            <span className="text-xl font-black mt-1">{sensor.riskLevelCode || 'R1'} • {riskDetails.label}</span>
           </div>
 
           <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between text-gray-400">
             <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
-              <Battery className="w-3.5 h-3.5 text-emerald-400" /> Energia
+              <Activity className="w-3.5 h-3.5 text-cyan-400" /> Fator de Segurança
             </span>
             <span className="text-xl font-black text-white mt-1">
-              94% <span className="text-[10px] text-emerald-400 font-normal uppercase">Solar</span>
+              {sensor.safetyFactor ? (sensor.safetyFactor >= 99 ? 'Estável' : `FS ${sensor.safetyFactor}`) : 'FS 1.50'}
             </span>
           </div>
         </div>
@@ -220,9 +220,9 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
           <div className="border border-red-500/30 bg-red-950/20 p-4 rounded-xl flex gap-3 text-red-400 border-l-4 border-l-red-500 animate-pulse">
             <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider">Perigo de Deslizamento</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider">Perigo Crítico de Ruptura</h4>
               <p className="text-[11px] opacity-80 mt-1 leading-normal">
-                Níveis críticos de saturação e inclinação detectados. Recomenda-se acionamento imediato da sirene comunitária e envio das equipes da Defesa Civil.
+                Limiar crítico de saturação superado na encosta. Fator de Segurança próximo de 1.0 (equilíbrio-limite). Alto risco de escorregamento translacional.
               </p>
             </div>
           </div>
@@ -230,47 +230,47 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
 
         {/* Telemetry Stats Grid */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/5 pb-2">Diagnóstico Instantâneo</h3>
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/5 pb-2">Diagnóstico Geotécnico Real</h3>
           
           <div className="grid grid-cols-2 gap-3">
             {/* Moisture Card */}
             <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
               <div className="flex items-center justify-between text-cyan-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Umidade do Solo</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Saturação do Manto</span>
                 <Droplets className="w-4 h-4" />
               </div>
               <div className="text-2xl font-black text-white">{sensor.soilMoisture.toFixed(1)}%</div>
-              <div className="text-[10px] text-gray-500 mt-1">Ref. Saturação (Capacitivo)</div>
+              <div className="text-[10px] text-gray-500 mt-1">Poropressão Relativa</div>
             </div>
 
             {/* Inclination Card */}
             <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
               <div className="flex items-center justify-between text-amber-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Inclinação</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Declividade Real</span>
                 <Compass className="w-4 h-4" />
               </div>
               <div className="text-2xl font-black text-white">{sensor.terrainInclination.toFixed(1)}°</div>
-              <div className="text-[10px] text-gray-500 mt-1">Acelerômetro Giroscópico</div>
+              <div className="text-[10px] text-gray-500 mt-1">Gradiente MDE (SRTM)</div>
             </div>
 
             {/* Rain Card */}
             <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
               <div className="flex items-center justify-between text-blue-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Pluviômetro</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Chuva Acumulada</span>
                 <CloudRain className="w-4 h-4" />
               </div>
               <div className="text-2xl font-black text-white">{sensor.rainVolume.toFixed(0)} mm</div>
-              <div className="text-[10px] text-gray-500 mt-1">Acumulado (Últimas 24h)</div>
+              <div className="text-[10px] text-gray-500 mt-1">Limiar CEMADEN (72h)</div>
             </div>
 
-            {/* Vibration Card */}
+            {/* Altitude Card */}
             <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
-              <div className="flex items-center justify-between text-rose-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Vibração</span>
+              <div className="flex items-center justify-between text-emerald-400 mb-2">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Cota Altimétrica</span>
                 <Activity className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white">{sensor.vibration.toFixed(1)} Hz</div>
-              <div className="text-[10px] text-gray-500 mt-1">Sensor Piezoelétrico (Solo)</div>
+              <div className="text-2xl font-black text-white">{sensor.altitude ? `${Math.round(sensor.altitude)}m` : 'SRTM DEM'}</div>
+              <div className="text-[10px] text-gray-500 mt-1">Altitude Geográfica Real</div>
             </div>
           </div>
         </div>

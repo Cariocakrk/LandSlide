@@ -60,7 +60,6 @@ export function initWhatsApp(io: any) {
   currentStatus = 'CONNECTING';
   io.emit('whatsapp-status', { status: currentStatus });
 
-  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   const puppeteerOptions: any = {
     headless: true,
     args: [
@@ -75,8 +74,28 @@ export function initWhatsApp(io: any) {
     ]
   };
 
-  if (fs.existsSync(chromePath)) {
-    puppeteerOptions.executablePath = chromePath;
+  // Suporte multiplataforma para Chrome/Chromium
+  const envChrome = process.env.PUPPETEER_EXECUTABLE_PATH;
+  const windowsPaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+  ];
+  const linuxPaths = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser'
+  ];
+
+  if (envChrome && fs.existsSync(envChrome)) {
+    puppeteerOptions.executablePath = envChrome;
+  } else if (process.platform === 'win32') {
+    const foundWin = windowsPaths.find(p => p && fs.existsSync(p));
+    if (foundWin) puppeteerOptions.executablePath = foundWin;
+  } else {
+    const foundLinux = linuxPaths.find(p => fs.existsSync(p));
+    if (foundLinux) puppeteerOptions.executablePath = foundLinux;
   }
 
   client = new Client({

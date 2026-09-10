@@ -5,7 +5,7 @@ import { socket } from '@/lib/socket';
 import {
   Area, AreaChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid
 } from 'recharts';
-import { Activity, Droplets, Mountain, CloudRain, AlertTriangle } from 'lucide-react';
+import { Activity, Droplets, Mountain, CloudRain, AlertTriangle, Compass, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useTerrainStore } from '@/store/terrainStore';
 
 type SensorData = {
@@ -15,6 +15,10 @@ type SensorData = {
   groundVibration: number;
   risk: number;
   statusColor: string;
+  safetyFactor?: number;
+  riskLevelCode?: 'R1' | 'R2' | 'R3' | 'R4';
+  classification?: string;
+  diagnosis?: string;
   timestamp: string;
 };
 
@@ -22,10 +26,25 @@ export default function Dashboard() {
   const [data, setData] = useState<SensorData[]>([]);
   const [current, setCurrent] = useState<SensorData | null>(null);
 
-  const { sensors, globalRisk, sensorsEnabled, rainVolume, humidity, slopeData } = useTerrainStore();
+  const {
+    location,
+    sensors,
+    globalRisk,
+    safetyFactor,
+    riskLevelCode,
+    riskClassification,
+    cemadenThreshold,
+    geomorphology,
+    diagnosis,
+    sensorsEnabled,
+    rainVolume,
+    accumulatedRain24h,
+    forecastRain24h,
+    soilSaturationPercent,
+    slopeData
+  } = useTerrainStore();
 
   useEffect(() => {
-    if (!sensorsEnabled) return;
     socket.on('sensorData', (newData: SensorData) => {
       setCurrent(newData);
       setData(prev => {
@@ -38,41 +57,28 @@ export default function Dashboard() {
     return () => {
       socket.off('sensorData');
     };
-  }, [sensorsEnabled]);
+  }, []);
 
-  const displayRisk = globalRisk;
+  const displayRisk = current?.risk ?? globalRisk;
+  const displayFS = current?.safetyFactor ?? safetyFactor;
+  const displayRiskCode = current?.riskLevelCode ?? riskLevelCode;
+  const displayStatusColor = current?.statusColor ?? (
+    displayRiskCode === 'R4' ? 'Vermelho' :
+    displayRiskCode === 'R3' ? 'Laranja' :
+    displayRiskCode === 'R2' ? 'Amarelo' : 'Verde'
+  );
+
+  const displayMoisture = current?.soilMoisture ?? soilSaturationPercent;
+  const displayRain72h = current?.rainVolume ?? rainVolume;
+  const displayInclination = current?.terrainInclination ?? (slopeData?.meanSlope || 15);
+  const displayMaxSlope = slopeData?.maxSlope || 28;
 
   const displayFutureRisk = sensorsEnabled && sensors.length > 0
-       ? Math.round(sensors.reduce((acc, s) => acc + (s.futureRisk || 0), 0) / sensors.length)
-       : displayRisk; // Fallback para o atual se não tiver projeção
-  
-  const displayMoisture = sensorsEnabled && sensors.length > 0 
-       ? Math.round(sensors.reduce((acc, s) => acc + s.soilMoisture, 0) / sensors.length) 
-       : null;
-       
-  const displayRain = sensorsEnabled && sensors.length > 0 
-       ? Math.round(sensors.reduce((acc, s) => acc + s.rainVolume, 0) / sensors.length) 
-       : rainVolume;
-       
-  const displayInclination = sensorsEnabled && sensors.length > 0 
-       ? Math.round(sensors.reduce((acc, s) => acc + s.terrainInclination, 0) / sensors.length) 
-       : (slopeData?.meanSlope || 0);
-       
-  const displayVibration = sensorsEnabled && sensors.length > 0 
-       ? Math.round(sensors.reduce((acc, s) => acc + s.vibration, 0) / sensors.length) 
-       : null;
-
-  const getDynamicStatusColor = (riskVal: number) => {
-      if (riskVal > 70) return "Vermelho";
-      if (riskVal > 40) return "Laranja";
-      if (riskVal > 15) return "Amarelo";
-      return "Verde";
-  };
-
-  const statusLabel = getDynamicStatusColor(displayRisk);
+    ? Math.round(sensors.reduce((acc, s) => acc + (s.futureRisk || 0), 0) / sensors.length)
+    : Math.min(100, Math.round(displayRisk * 1.15 + (forecastRain24h > 20 ? 15 : 0)));
 
   const getStatusColorHex = (color: string) => {
-    switch(color) {
+    switch (color) {
       case "Verde": return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
       case "Amarelo": return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
       case "Laranja": return "text-orange-500 bg-orange-500/10 border-orange-500/20";
@@ -80,9 +86,9 @@ export default function Dashboard() {
       default: return "text-gray-500 bg-gray-500/10 border-gray-500/20";
     }
   };
-  
+
   const getGaugeColorHex = (color: string) => {
-    switch(color) {
+    switch (color) {
       case "Verde": return "#10b981";
       case "Amarelo": return "#eab308";
       case "Laranja": return "#f97316";
@@ -93,163 +99,200 @@ export default function Dashboard() {
 
   const calculateGaugeStrokeDashoffset = (value: number) => {
     const circumference = Math.PI * 100;
-    const offset = circumference - (value / 100) * circumference;
-    return offset;
+    return circumference - (value / 100) * circumference;
   };
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto w-full space-y-6 animate-in fade-in duration-700">
+    <div className="p-6 md:p-10 max-w-7xl mx-auto w-full space-y-6 animate-in fade-in duration-700 font-sans">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-          <Activity className="w-8 h-8 text-blue-500" />
-          Dashboard {sensorsEnabled ? "em Tempo Real" : "via Satélite"}
-        </h1>
-        <p className="text-gray-400">
-          {sensorsEnabled 
-            ? "Monitoramento contínuo dos sensores da encosta via WebSocket" 
-            : "Análise climática e topográfica baseada em relevo global e previsão de satélite"}
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-white mb-2 flex items-center gap-3 tracking-tight">
+              <Activity className="w-8 h-8 text-blue-500" />
+              Painel de Inteligência Geotécnica e Risco
+            </h1>
+            <p className="text-gray-400 text-sm">
+              {location 
+                ? `Monitoramento ativo para: ${location} • Modelo Digital de Elevação (SRTM 30m)`
+                : "Sistema de Alerta Precoce baseado no Modelo de Talude Infinito (Mohr-Coulomb) e Limiares CEMADEN"}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
+            <ShieldAlert className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-gray-300 font-mono">
+              Classificação CPRM: <strong className="text-white">{displayRiskCode}</strong>
+            </span>
+          </div>
+        </div>
       </header>
 
       {/* Main Status & Gauge */}
       <div className="grid md:grid-cols-3 gap-6">
-        <div className={`md:col-span-1 border rounded-2xl p-6 flex flex-col items-center justify-center transition-colors duration-500 ${getStatusColorHex(statusLabel)}`}>
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-4">Nível de Risco</h2>
-          
-          <div className="relative w-48 h-24 overflow-hidden mb-2 flex justify-center">
-             <svg className="w-48 h-48 rotate-[180deg]" viewBox="0 0 250 250">
-                <circle cx="125" cy="125" r="100" fill="transparent" stroke="currentColor" strokeWidth="24" strokeLinecap="round" className="opacity-20 stroke-current text-white" strokeDasharray="314.159" strokeDashoffset="0" />
-                <circle 
-                   cx="125" 
-                   cy="125" 
-                   r="100" 
-                   fill="transparent" 
-                   stroke={getGaugeColorHex(statusLabel)} 
-                   strokeWidth="24" 
-                   strokeLinecap="round"
-                   strokeDasharray="314.159" 
-                   strokeDashoffset={calculateGaugeStrokeDashoffset(displayRisk)} 
-                   className="transition-all duration-1000 ease-out"
-                />
-             </svg>
-             <div className="absolute bottom-4 flex flex-col items-center">
-                  <span className="text-5xl font-black">{displayRisk}</span>
-             </div>
+        <div className={`md:col-span-1 border rounded-2xl p-6 flex flex-col items-center justify-between transition-colors duration-500 ${getStatusColorHex(displayStatusColor)}`}>
+          <div className="w-full flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider">Grau de Risco CPRM</span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-black/30 border border-current">
+              {displayRiskCode}
+            </span>
           </div>
-          
-          <div className="flex items-center gap-2 mt-4 text-xl font-bold bg-black/20 px-4 py-2 rounded-full border border-current">
-            {statusLabel === 'Vermelho' && <AlertTriangle className="w-5 h-5" />}
-            Estado: {statusLabel}
+
+          <div className="relative w-48 h-24 overflow-hidden my-4 flex justify-center">
+            <svg className="w-48 h-48 rotate-[180deg]" viewBox="0 0 250 250">
+              <circle cx="125" cy="125" r="100" fill="transparent" stroke="currentColor" strokeWidth="24" strokeLinecap="round" className="opacity-20 stroke-current text-white" strokeDasharray="314.159" strokeDashoffset="0" />
+              <circle
+                cx="125"
+                cy="125"
+                r="100"
+                fill="transparent"
+                stroke={getGaugeColorHex(displayStatusColor)}
+                strokeWidth="24"
+                strokeLinecap="round"
+                strokeDasharray="314.159"
+                strokeDashoffset={calculateGaugeStrokeDashoffset(displayRisk)}
+                className="transition-all duration-1000 ease-out"
+              />
+            </svg>
+            <div className="absolute bottom-4 flex flex-col items-center">
+              <span className="text-5xl font-black">{displayRisk}%</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-1 text-center">
+            <div className="flex items-center gap-2 text-lg font-bold bg-black/20 px-4 py-1.5 rounded-full border border-current">
+              {displayStatusColor === 'Vermelho' ? <AlertTriangle className="w-5 h-5 animate-bounce" /> : <CheckCircle2 className="w-5 h-5" />}
+              {displayStatusColor} ({riskClassification})
+            </div>
+            <span className="text-[11px] opacity-75 mt-1 font-mono">
+              Fator de Segurança: {displayFS >= 99 ? 'Estável (Plano)' : `FS ${displayFS}`}
+            </span>
           </div>
         </div>
 
-        {/* Sensor Metrics Grid */}
+        {/* Geotechnical Metrics Grid */}
         <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
-          {sensorsEnabled ? (
-            <>
-              <MetricCard title="Umidade do Solo" value={displayMoisture} unit="%" icon={Droplets} color="text-blue-400" />
-              <MetricCard title="Chuva Acum. 6h" value={displayRain} unit="mm" icon={CloudRain} color="text-purple-400" />
-              <MetricCard title="Inclinação Média" value={displayInclination} unit="°" icon={Mountain} color="text-orange-400" />
-              <MetricCard title="Vibração Solo" value={displayVibration} unit="Hz" icon={Activity} color="text-red-400" />
-            </>
-          ) : (
-            <>
-              <MetricCard title="Chuva Acum. 6h" value={displayRain} unit="mm" icon={CloudRain} color="text-purple-400" />
-              <MetricCard title="Declividade Global" value={displayInclination} unit="°" icon={Mountain} color="text-orange-400" />
-              <MetricCard title="Umidade do Ar" value={humidity} unit="%" icon={Droplets} color="text-blue-400" />
-            </>
-          )}
-          
-          {/* Projeção (Future Risk) */}
-          <div className={`col-span-2 border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-6 flex flex-col justify-between hover:bg-white/5 transition-colors relative overflow-hidden`}>
-            {/* Gradiente de fundo sutil */}
-            <div className={`absolute inset-0 opacity-10 ${getStatusColorHex(getDynamicStatusColor(displayFutureRisk))}`} />
-            
+          <MetricCard
+            title="Fator de Segurança (FS)"
+            value={displayFS >= 99 ? 'Estável' : displayFS}
+            unit={displayFS >= 99 ? '' : 'Mohr-Coulomb'}
+            icon={Mountain}
+            color={displayFS < 1.0 ? "text-red-400" : displayFS < 1.3 ? "text-orange-400" : "text-emerald-400"}
+          />
+          <MetricCard
+            title="Chuva Acumulada 72h"
+            value={displayRain72h}
+            unit="mm (CEMADEN)"
+            icon={CloudRain}
+            color={displayRain72h >= 100 ? "text-red-400" : displayRain72h >= 60 ? "text-orange-400" : "text-blue-400"}
+          />
+          <MetricCard
+            title="Saturação do Solo"
+            value={displayMoisture}
+            unit="% capacidade"
+            icon={Droplets}
+            color="text-cyan-400"
+          />
+          <MetricCard
+            title="Declividade Média"
+            value={displayInclination}
+            unit={`° (Máx ${displayMaxSlope}°)`}
+            icon={Compass}
+            color={displayInclination >= 25 ? "text-orange-400" : "text-yellow-400"}
+          />
+          <MetricCard
+            title="Previsão Próx. 24h"
+            value={forecastRain24h}
+            unit="mm esperados"
+            icon={CloudRain}
+            color="text-indigo-400"
+          />
+          <MetricCard
+            title="Alerta CEMADEN"
+            value={cemadenThreshold.split(' ')[0]}
+            unit="limiar"
+            icon={AlertTriangle}
+            color="text-amber-400"
+          />
+
+          {/* Projeção Geotécnica */}
+          <div className="col-span-2 md:col-span-3 border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-5 flex flex-col justify-between hover:bg-white/5 transition-colors relative overflow-hidden">
+            <div className={`absolute inset-0 opacity-10 ${getStatusColorHex(displayStatusColor)}`} />
             <div className="flex items-center justify-between mb-2 relative z-10">
-              <span className="font-semibold text-gray-300">Projeção Geotécnica (Próximas 6h)</span>
-              <div className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColorHex(getDynamicStatusColor(displayFutureRisk))}`}>
-                {getDynamicStatusColor(displayFutureRisk)}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Diagnóstico Geotécnico Oficial</span>
+                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-400 font-mono">{geomorphology}</span>
               </div>
+              <span className="text-xs font-mono text-gray-400">Projeção 24h: {displayFutureRisk}%</span>
             </div>
-            
-            <div className="relative z-10 flex items-end gap-4">
-              <div className="text-5xl font-extrabold text-white tracking-tight">
-                {displayFutureRisk}
-              </div>
-              <div className="mb-2 text-sm text-gray-400 flex items-center gap-1">
-                vs <span className="font-bold text-white">{displayRisk}</span> atual
-              </div>
-            </div>
+            <p className="text-xs text-gray-300 relative z-10 leading-relaxed font-mono">
+              {current?.diagnosis || diagnosis || "Aguardando leitura e consolidação dos sensores da encosta."}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Charts List */}
-      {sensorsEnabled ? (
-        <div className="grid lg:grid-cols-2 gap-6 mt-6">
-          {/* Soil Moisture Chart */}
-          <div className="border border-white/10 rounded-xl bg-black/40 backdrop-blur p-5 shadow-xl">
-             <h3 className="font-semibold text-white mb-6 flex items-center gap-2">
-               <Droplets className="w-4 h-4 text-blue-500" />
-               Umidade vs Chuva Histórico
-             </h3>
-             <div className="h-64">
-               <ResponsiveContainer width="100%" height="100%">
-                 <AreaChart data={data}>
-                   <defs>
-                      <linearGradient id="colorUmidade" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                   </defs>
-                   <XAxis dataKey="timestamp" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} stroke="#555" fontSize={12} />
-                   <YAxis stroke="#555" fontSize={12} />
-                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff11" vertical={false} />
-                   <Tooltip contentStyle={{ backgroundColor: 'rgba(5, 5, 5, 0.9)', borderColor: '#333', borderRadius: '8px' }} labelFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                   <Area type="monotone" dataKey="soilMoisture" name="Umidade (%)" stroke="#3b82f6" fillOpacity={1} fill="url(#colorUmidade)" />
-                   <Line type="monotone" dataKey="rainVolume" name="Chuva (mm)" stroke="#a855f7" strokeWidth={2} dot={false} />
-                 </AreaChart>
-               </ResponsiveContainer>
-             </div>
+      {/* Historical Telemetry Charts */}
+      <div className="grid lg:grid-cols-2 gap-6 mt-6">
+        {/* Soil Moisture and Rain Chart */}
+        <div className="border border-white/10 rounded-xl bg-black/40 backdrop-blur p-5 shadow-xl">
+          <h3 className="font-semibold text-white mb-4 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm">
+              <Droplets className="w-4 h-4 text-blue-500" />
+              Evolução da Saturação do Manto vs Precipitação
+            </span>
+            <span className="text-[10px] font-mono text-gray-500">Histórico em Tempo Real</span>
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                  <linearGradient id="colorUmidade" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="timestamp" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} stroke="#555" fontSize={11} />
+                <YAxis stroke="#555" fontSize={11} domain={[0, 100]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff11" vertical={false} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(5, 5, 5, 0.95)', borderColor: '#333', borderRadius: '8px', fontSize: '11px' }} labelFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <Area type="monotone" dataKey="soilMoisture" name="Saturação Solo (%)" stroke="#3b82f6" fillOpacity={1} fill="url(#colorUmidade)" />
+                <Line type="monotone" dataKey="rainVolume" name="Chuva Acumulada (mm)" stroke="#a855f7" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        </div>
 
-          {/* Inclination and Vibration Chart */}
-          <div className="border border-white/10 rounded-xl bg-black/40 backdrop-blur p-5 shadow-xl">
-             <h3 className="font-semibold text-white mb-6 flex items-center gap-2">
-               <Mountain className="w-4 h-4 text-orange-500" />
-               Estabilidade Estrutural
-             </h3>
-             <div className="h-64">
-               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={data}>
-                   <XAxis dataKey="timestamp" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} stroke="#555" fontSize={12} />
-                   <YAxis stroke="#555" fontSize={12} />
-                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff11" vertical={false} />
-                   <Tooltip contentStyle={{ backgroundColor: 'rgba(5, 5, 5, 0.9)', borderColor: '#333', borderRadius: '8px' }} labelFormatter={(t) => new Date(t).toLocaleTimeString()} />
-                   <Line type="monotone" dataKey="terrainInclination" name="Inclinação (°)" stroke="#f97316" strokeWidth={3} dot={false} />
-                   <Line type="monotone" dataKey="groundVibration" name="Vibração (Hz)" stroke="#ef4444" strokeWidth={3} dot={false} />
-                   <Line type="stepAfter" dataKey="risk" name="Risco Global" stroke="#10b981" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                 </LineChart>
-               </ResponsiveContainer>
-             </div>
+        {/* Structural Stability & Safety Factor Chart */}
+        <div className="border border-white/10 rounded-xl bg-black/40 backdrop-blur p-5 shadow-xl">
+          <h3 className="font-semibold text-white mb-4 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm">
+              <Mountain className="w-4 h-4 text-orange-500" />
+              Estabilidade Estrutural e Risco Geotécnico
+            </span>
+            <span className="text-[10px] font-mono text-gray-500">Talude Infinito</span>
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data}>
+                <XAxis dataKey="timestamp" tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} stroke="#555" fontSize={11} />
+                <YAxis stroke="#555" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff11" vertical={false} />
+                <Tooltip contentStyle={{ backgroundColor: 'rgba(5, 5, 5, 0.95)', borderColor: '#333', borderRadius: '8px', fontSize: '11px' }} labelFormatter={(t) => new Date(t).toLocaleTimeString()} />
+                <Line type="monotone" dataKey="terrainInclination" name="Declividade (°)" stroke="#f97316" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="safetyFactor" name="Fator de Segurança (FS)" stroke="#06b6d4" strokeWidth={2} dot={false} />
+                <Line type="stepAfter" dataKey="risk" name="Índice de Risco (%)" stroke="#ef4444" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      ) : (
-        <div className="mt-6 border border-white/10 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-white/[0.01] backdrop-blur-md">
-          <CloudRain className="w-12 h-12 text-indigo-500/50 mb-4 animate-pulse" />
-          <h4 className="text-white font-bold text-sm uppercase tracking-wider">Monitoramento Topográfico Ativo</h4>
-          <p className="text-xs text-gray-400 max-w-md mt-2 leading-relaxed">
-            Sem sensores físicos instalados neste setor. Os dados em tempo real e gráficos de telemetria estão indisponíveis. A central continua operando com base nas estimativas de relevo e dados meteorológicos integrados por satélite.
-          </p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 interface MetricCardProps {
   title: string;
-  value: number | undefined | null;
+  value: number | string | undefined | null;
   unit: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
@@ -257,16 +300,17 @@ interface MetricCardProps {
 
 function MetricCard({ title, value, unit, icon: Icon, color }: MetricCardProps) {
   return (
-    <div className="border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-6 flex flex-col justify-between hover:bg-white/5 transition-colors">
-      <div className="flex items-center justify-between mb-4">
-        <span className="font-medium text-gray-400">{title}</span>
+    <div className="border border-white/10 bg-black/40 backdrop-blur-md rounded-xl p-5 flex flex-col justify-between hover:bg-white/5 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-gray-400">{title}</span>
         <div className={`p-2 rounded-lg bg-white/5 ${color}`}>
-            <Icon className="w-5 h-5" />
+          <Icon className="w-4 h-4" />
         </div>
       </div>
-      <div className="text-4xl font-extrabold text-white tracking-tight flex items-end gap-1">
-        {value !== undefined ? value : '-'} <span className="text-lg text-gray-500 font-normal mb-1">{unit}</span>
+      <div className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-baseline gap-1.5">
+        {value !== undefined && value !== null ? value : '-'}
+        <span className="text-xs text-gray-500 font-normal">{unit}</span>
       </div>
     </div>
-  )
+  );
 }

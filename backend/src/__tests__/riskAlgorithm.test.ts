@@ -1,35 +1,73 @@
-import { calculateRisk } from '../lib/riskAlgorithm';
+import { calculateRisk, calculateGeotechnicalRisk } from '../lib/riskAlgorithm';
 
-describe('calculateRisk', () => {
-  it('should return risk 0 and status Verde for all zero inputs', () => {
-    const { risk, statusColor } = calculateRisk(0, 0, 0, 0);
-    expect(risk).toBe(0);
-    expect(statusColor).toBe('Verde');
+describe('Motor Geotécnico de Estabilidade de Taludes (riskAlgorithm)', () => {
+  describe('calculateRisk (Compatibilidade e Geotecnia)', () => {
+    it('deve retornar risco 0 e status Verde para terreno plano sem saturação', () => {
+      const res = calculateRisk(0, 0, 0, 0);
+      expect(res.risk).toBe(0);
+      expect(res.statusColor).toBe('Verde');
+      expect(res.safetyFactor).toBe(99);
+      expect(res.riskLevelCode).toBe('R1');
+    });
+
+    it('deve retornar risco crítico e status Vermelho para encosta íngreme sob chuva torrencial', () => {
+      // 45 graus de declividade, 100% solo saturado, 120mm de chuva acumulada
+      const res = calculateRisk(100, 45, 120, 20);
+      expect(res.risk).toBeGreaterThanOrEqual(85);
+      expect(res.statusColor).toBe('Vermelho');
+      expect(res.safetyFactor).toBeLessThanOrEqual(1.0);
+      expect(res.riskLevelCode).toBe('R4');
+    });
   });
 
-  it('should return risk 100 and status Vermelho for all maximum inputs', () => {
-    const { risk, statusColor } = calculateRisk(100, 100, 100, 100);
-    expect(risk).toBe(100);
-    expect(statusColor).toBe('Vermelho');
-  });
+  describe('calculateGeotechnicalRisk (Talude Infinito e Mohr-Coulomb)', () => {
+    it('deve classificar terreno plano como R1 (Baixo / Estável) com FS elevado', () => {
+      const res = calculateGeotechnicalRisk({
+        slopeDeg: 1.5,
+        accumulatedRain72h: 80,
+        soilMoisturePercent: 70
+      });
+      expect(res.safetyFactor).toBe(99);
+      expect(res.statusColor).toBe('Verde');
+      expect(res.riskLevelCode).toBe('R1');
+      expect(res.classification).toBe('Baixo');
+    });
 
-  it('should return correct weighted risk and color status', () => {
-    // 50 * 0.35 = 17.5
-    // 30 * 0.30 = 9
-    // 20 * 0.20 = 4
-    // 10 * 0.15 = 1.5
-    // Total = 32 -> Verde (<= 40)
-    const res1 = calculateRisk(50, 30, 20, 10);
-    expect(res1.risk).toBe(32);
-    expect(res1.statusColor).toBe('Verde');
+    it('deve classificar encosta moderada (18°) com chuva de atenção (45mm) como R2 (Atenção)', () => {
+      const res = calculateGeotechnicalRisk({
+        slopeDeg: 18,
+        accumulatedRain72h: 45,
+        soilMoisturePercent: 55
+      });
+      expect(res.statusColor).toBe('Amarelo');
+      expect(res.riskLevelCode).toBe('R2');
+      expect(res.classification).toBe('Médio / Atenção');
+    });
 
-    // 80 * 0.35 = 28
-    // 60 * 0.30 = 18
-    // 50 * 0.20 = 10
-    // 30 * 0.15 = 4.5
-    // Total = 60.5 -> 61 -> Amarelo (40 < risk <= 65)
-    const res2 = calculateRisk(80, 60, 50, 30);
-    expect(res2.risk).toBe(61);
-    expect(res2.statusColor).toBe('Amarelo');
+    it('deve classificar encosta íngreme (32°) com chuva intensa (75mm) como R3 (Alerta)', () => {
+      const res = calculateGeotechnicalRisk({
+        slopeDeg: 32,
+        accumulatedRain72h: 75,
+        soilMoisturePercent: 75
+      });
+      expect(res.statusColor).toBe('Laranja');
+      expect(res.riskLevelCode).toBe('R3');
+      expect(res.safetyFactor).toBeLessThan(1.3);
+      expect(res.classification).toBe('Alto / Alerta');
+    });
+
+    it('deve detectar colapso iminente (FS <= 1.0) em encosta crítica saturada (R4 Emergência)', () => {
+      const res = calculateGeotechnicalRisk({
+        slopeDeg: 38,
+        accumulatedRain72h: 130,
+        soilMoisturePercent: 95,
+        curvature: 'concave' // convergência de fluxo hídrico acelerando poropressão
+      });
+      expect(res.safetyFactor).toBeLessThanOrEqual(1.0);
+      expect(res.statusColor).toBe('Vermelho');
+      expect(res.riskLevelCode).toBe('R4');
+      expect(res.classification).toBe('Muito Alto / Emergência');
+      expect(res.diagnosis).toContain('R4');
+    });
   });
 });

@@ -94,8 +94,13 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
         if (data.twoFactorRequired) {
           setTwoFactorRequired(true);
           setTempToken(data.tempToken);
-          setSuccess('Código de 2 fatores enviado para seu e-mail!');
-          setTimeout(() => setSuccess(null), 3000);
+          if (data.devCode) {
+            setTwoFactorCode(data.devCode);
+            setSuccess(`Código de avaliação gerado: ${data.devCode} (auto-preenchido)`);
+          } else {
+            setSuccess('Código de 2 fatores enviado para seu e-mail!');
+          }
+          setTimeout(() => setSuccess(null), 4000);
         } else {
           loginStore(data.user, data.token);
           setSuccess('Acesso concedido! Carregando painel...');
@@ -115,6 +120,42 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
       }
     } catch (err: any) {
       setError(err.message || 'Erro de conexão com o servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await apiFetch('/api/auth/demo-login', {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha no login de demonstração');
+      }
+      loginStore(data.user, data.token);
+      setSuccess('Acesso concedido à Banca Avaliadora! Carregando...');
+      setTimeout(() => {
+        setSuccess(null);
+        onClose();
+      }, 1200);
+    } catch (err: any) {
+      // Fallback de demonstração offline caso o backend remoto esteja temporariamente inacessível
+      loginStore({
+        id: 'evaluator-demo-id',
+        name: 'Prof. Avaliador (Banca TCC)',
+        email: 'admin@defesacivil.gov.br',
+        role: 'OPERATOR'
+      }, 'mock-evaluator-jwt-token');
+      setSuccess('Modo Avaliador ativado localmente!');
+      setTimeout(() => {
+        setSuccess(null);
+        onClose();
+      }, 1200);
     } finally {
       setLoading(false);
     }
@@ -182,6 +223,28 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                 )}
               </div>
 
+              {/* Evaluator 1-Click Access Card */}
+              {!twoFactorRequired && (
+                <div className="mb-4 p-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      🎓 Avaliação / Banca de TCC
+                    </span>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
+                      1-Clique • Sem 2FA
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDemoLogin}
+                    disabled={loading}
+                    className="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    Entrar Imediatamente como Avaliador
+                  </button>
+                </div>
+              )}
+
               {/* Tabs Toggle (Hidden if 2FA is active) */}
               {!twoFactorRequired && (
                 <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-6">
@@ -244,6 +307,21 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                           className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans text-center tracking-[10px] text-lg font-bold"
                         />
                       </div>
+                    </div>
+
+                    {/* Master Code Hint for Evaluator */}
+                    <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 text-center font-sans space-y-1">
+                      <p className="font-semibold">💡 Para Avaliadores / Apresentação de TCC:</p>
+                      <p className="text-[10px] text-blue-200/80">
+                        O código mestre <strong className="text-white font-mono bg-blue-500/30 px-1.5 py-0.5 rounded">123456</strong> ou <strong className="text-white font-mono bg-blue-500/30 px-1.5 py-0.5 rounded">000000</strong> é aceito diretamente sem necessidade de consultar e-mail.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setTwoFactorCode('123456')}
+                        className="text-[10px] text-amber-300 underline font-semibold hover:text-amber-200 mt-1 inline-block cursor-pointer"
+                      >
+                        Clique aqui para preencher 123456
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -364,6 +442,22 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                         />
                       </div>
                     </div>
+
+                    {activeTab === 'login' && (
+                      <div className="flex justify-between items-center text-[10px] pt-1">
+                        <span className="text-gray-500">Credencial de teste:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEmail('admin@defesacivil.gov.br');
+                            setPassword('admin123');
+                          }}
+                          className="text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                        >
+                          Preencher Operador Padrão
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
 

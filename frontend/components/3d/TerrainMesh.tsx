@@ -171,6 +171,9 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         }
         const finalElevation = isWater ? minElevation : elevation;
 
+        // Escala vertical proporcional ao relevo real (desnível em metros)
+        const normalizedY = ((finalElevation - minElevation) / range) * Math.min(3.0, Math.max(0.4, (range / 50)));
+
         // PlaneGeometry nativo tem dimensões 10x10. Calculamos matematicamente X e Y originais
         // com base nos índices de linha r e coluna c, tornando a deformação totalmente stateless e imune a re-renders.
         const width = 10;
@@ -179,25 +182,38 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const nativeY = height / 2 - r * (height / (rows - 1));
 
         vertices[i] = nativeX;
-        vertices[i + 1] = finalElevation * 0.05;
+        vertices[i + 1] = normalizedY;
         vertices[i + 2] = -nativeY;
         
-        // Mapeamento de cor (Cores neon puras e saturadas para que as ruas emissivas brilhem intensamente
-        // nas cores de risco corretas, enquanto o fundo preto da textura oculta o resto do relevo)
+        // Cálculo geomorfométrico de declividade real por vértice (graus)
+        const nextC = Math.min(cols - 1, c + 1);
+        const prevC = Math.max(0, c - 1);
+        const nextR = Math.min(rows - 1, r + 1);
+        const prevR = Math.max(0, r - 1);
+
+        const dzdx = (matrix[r][nextC] - matrix[r][prevC]) / ((nextC - prevC || 1) * 38);
+        const dzdy = (matrix[nextR][c] - matrix[prevR][c]) / ((nextR - prevR || 1) * 38);
+        const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
+
+        // Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT):
+        // Encostas com declividade acentuada (> 25° e > 35°) são as zonas reais de ruptura potencial
         if (isWater) {
-          // Azul/Ciano brilhante para oceanos, praias e rios (completamente plano)
+          // Azul/Ciano brilhante para corpos d'água (completamente plano)
           colorInstance.setHSL(0.58, 1.0, 0.45);
         } else if (isCritical) {
-          // Vermelho crítico puro
-          colorInstance.setHSL(0.0, 1.0, 0.5);
-        } else if (normalizedH < 0.3) {
-          // Verde seguro puro
-          colorInstance.setHSL(0.33, 1.0, 0.5);
-        } else if (normalizedH < 0.7) {
-          // Amarelo/Laranja de transição
-          colorInstance.setHSL(0.08, 1.0, 0.5);
+          // Modo de desastre: encostas críticas em vermelho puro
+          colorInstance.setHSL(slopeDeg > 20 ? 0.0 : 0.08, 1.0, 0.5);
+        } else if (slopeDeg < 15) {
+          // Verde seguro (Platô / Planície / Encosta suave estável)
+          colorInstance.setHSL(0.33, 0.9, 0.45);
+        } else if (slopeDeg < 25) {
+          // Amarelo atenção (Declividade moderada)
+          colorInstance.setHSL(0.14, 1.0, 0.5);
+        } else if (slopeDeg < 35) {
+          // Laranja alerta (Encosta crítica em equilíbrio-limite)
+          colorInstance.setHSL(0.06, 1.0, 0.5);
         } else {
-          // Vermelho risco alto
+          // Vermelho emergência (Escarpa íngreme de alta suscetibilidade de ruptura)
           colorInstance.setHSL(0.0, 1.0, 0.5);
         }
         

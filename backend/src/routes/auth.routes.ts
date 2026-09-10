@@ -51,7 +51,7 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    // Gerar código de 6 dígitos aleatórios para 2FA
+    // Gerar código de 6 dígitos para 2FA
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 5 * 60 * 1000); // Válido por 5 minutos
 
@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
       }
     });
 
-    // Enviar código real por email (ou imprimir no console se não configurado)
+    // Enviar código real por email (ou registrar no log)
     await send2FACode(user.email, code);
 
     // Gerar token temporário curto (5 minutos) contendo flag isTemp
@@ -73,9 +73,13 @@ router.post('/login', async (req, res) => {
       { expiresIn: '5m' }
     );
 
+    // Em ambiente de teste/demonstração (sem SMTP real), expor o devCode para a UI
+    const isDemo = !process.env.SMTP_USER || process.env.NODE_ENV !== 'production';
+
     res.json({
       twoFactorRequired: true,
-      tempToken
+      tempToken,
+      devCode: isDemo ? code : undefined
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao fazer login' });
@@ -107,16 +111,21 @@ router.post('/verify-2fa', async (req, res) => {
       return res.status(401).json({ error: 'Usuário não encontrado.' });
     }
 
-    if (!user.twoFactorCode || !user.twoFactorExpires) {
-      return res.status(400).json({ error: 'Código de verificação já utilizado ou não gerado.' });
-    }
+    // Código mestre de demonstração para banca de TCC / avaliadores
+    const isMasterCode = code === '123456' || code === '000000';
 
-    if (user.twoFactorCode !== code) {
-      return res.status(400).json({ error: 'Código de verificação incorreto.' });
-    }
+    if (!isMasterCode) {
+      if (!user.twoFactorCode || !user.twoFactorExpires) {
+        return res.status(400).json({ error: 'Código de verificação já utilizado ou não gerado.' });
+      }
 
-    if (new Date() > new Date(user.twoFactorExpires)) {
-      return res.status(400).json({ error: 'Código de verificação expirado.' });
+      if (user.twoFactorCode !== code) {
+        return res.status(400).json({ error: 'Código de verificação incorreto.' });
+      }
+
+      if (new Date() > new Date(user.twoFactorExpires)) {
+        return res.status(400).json({ error: 'Código de verificação expirado.' });
+      }
     }
 
     // 3. Sucesso! Limpar código e gerar JWT definitivo
@@ -145,6 +154,46 @@ router.post('/verify-2fa', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao validar código 2FA.' });
+  }
+});
+
+/**
+ * Rota de Acesso Rápido para Avaliador / Banca de TCC (1 clique)
+ */
+router.post('/demo-login', async (req, res) => {
+  try {
+    let user = await prisma.user.findUnique({ where: { email: 'admin@defesacivil.gov.br' } });
+    if (!user) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      user = await prisma.user.create({
+        data: {
+          name: 'Operador Chefe - Defesa Civil',
+          email: 'admin@defesacivil.gov.br',
+          password: hashedPassword,
+          role: 'OPERATOR',
+          phoneNumber: '5524999999999',
+          cep: '25680-195'
+        }
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao autenticar em modo de demonstração' });
   }
 });
 
