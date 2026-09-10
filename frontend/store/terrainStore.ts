@@ -62,6 +62,7 @@ type TerrainState = {
 
   telemetryInterval: NodeJS.Timeout | null;
   weatherInterval: NodeJS.Timeout | null;
+  drainInterval: NodeJS.Timeout | null;
 
   setTerrainData: (data: TerrainData, slopeData: SlopeData) => void;
   setSensors: (sensors: GeotechnicalStation[]) => void;
@@ -171,8 +172,12 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
 
   telemetryInterval: null,
   weatherInterval: null,
+  drainInterval: null,
 
   setTerrainData: (data: TerrainData, slopeData: SlopeData) => {
+    const dInt = get().drainInterval;
+    if (dInt) clearInterval(dInt);
+
     set({
       location: data.location,
       latitude: data.latitude,
@@ -182,12 +187,17 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       maxElevation: data.maxElevation,
       reliefAmplitude: data.reliefAmplitude || (data.maxElevation - data.minElevation),
       slopeData,
-      geomorphology: slopeData.geomorphology || 'Relevo em Análise'
+      geomorphology: slopeData.geomorphology || 'Relevo em Análise',
+      drainInterval: null
     });
     get().recalculateGlobalRisk();
   },
 
   fetchAndApplyWeather: async () => {
+    const dInt = get().drainInterval;
+    if (dInt) clearInterval(dInt);
+    set({ drainInterval: null });
+
     const { latitude, longitude } = get();
     if (!latitude || !longitude) return;
 
@@ -253,16 +263,18 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   setSensors: (sensors: GeotechnicalStation[]) => {
     const currentTelemetry = get().telemetryInterval;
     const currentWeather = get().weatherInterval;
+    const currentDrain = get().drainInterval;
     if (currentTelemetry) clearInterval(currentTelemetry);
     if (currentWeather) clearInterval(currentWeather);
+    if (currentDrain) clearInterval(currentDrain);
 
     if (!get().sensorsEnabled) {
-      set({ sensors: [] });
+      set({ sensors: [], drainInterval: null });
       get().recalculateGlobalRisk();
       return;
     }
 
-    set({ sensors });
+    set({ sensors, drainInterval: null });
     get().recalculateGlobalRisk();
 
     // Sincronização periódica com backend (a cada 30s para telemetria leve)
@@ -303,13 +315,16 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     } else {
       const currentTelemetry = get().telemetryInterval;
       const currentWeather = get().weatherInterval;
+      const currentDrain = get().drainInterval;
       if (currentTelemetry) clearInterval(currentTelemetry);
       if (currentWeather) clearInterval(currentWeather);
+      if (currentDrain) clearInterval(currentDrain);
 
       set({
         sensors: [],
         telemetryInterval: null,
-        weatherInterval: null
+        weatherInterval: null,
+        drainInterval: null
       });
       get().recalculateGlobalRisk();
       get().fetchAndApplyWeather();
@@ -412,8 +427,10 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   clearTerrain: () => {
     const tInt = get().telemetryInterval;
     const wInt = get().weatherInterval;
+    const dInt = get().drainInterval;
     if (tInt) clearInterval(tInt);
     if (wInt) clearInterval(wInt);
+    if (dInt) clearInterval(dInt);
 
     set({
       location: null,
@@ -428,6 +445,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       diagnosis: 'Aguardando seleção de localidade.',
       telemetryInterval: null,
       weatherInterval: null,
+      drainInterval: null,
       rainVolume: 0,
       accumulatedRain24h: 0,
       currentRainIntensity: 0,
@@ -438,56 +456,59 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   },
 
   restoreNormalConditions: () => {
-    // Esvaziamento hidrológico progressivo simulando drenagem natural do manto
-    const drainInterval = setInterval(() => {
-      let done = true;
-      set((state) => {
-        const updatedSensors = state.sensors.map((s) => {
-          let newMoist = s.soilMoisture;
-          let newRain = s.rainVolume;
-          let newVib = s.vibration;
+    // Cancela qualquer intervalo de drenagem prévio
+    const dInt = get().drainInterval;
+    if (dInt) clearInterval(dInt);
+    set({ drainInterval: null });
 
-          if (s.soilMoisture > 35) {
-            newMoist = Math.max(35, s.soilMoisture - 2.0);
-            done = false;
-          }
-          if (s.rainVolume > 0) {
-            newRain = Math.max(0, s.rainVolume - 3.0);
-            done = false;
-          }
-          if (s.vibration > 0) {
-            newVib = Math.max(0, s.vibration - 1.0);
-            done = false;
-          }
-
+    const { latitude, longitude } = get();
+    if (latitude && longitude) {
+      // Se há coordenadas ativas, reobter a telemetria climática real da localidade
+      get().fetchAndApplyWeather();
+      set((state) => ({
+        sensors: state.sensors.map((s) => {
           const updated = {
             ...s,
-            soilMoisture: newMoist,
-            rainVolume: newRain,
-            vibration: newVib
+            vibration: 0,
+            rainVolume: state.rainVolume,
+            soilMoisture: state.soilSaturationPercent
           };
           const geo = calcGeotechnicalStationRisk(updated);
           return {
             ...updated,
             safetyFactor: geo.safetyFactor,
             localRisk: geo.localRisk,
-            riskLevelCode: geo.riskLevelCode
+            riskLevelCode: geo.riskLevelCode,
+            futureRisk: geo.localRisk
           };
-        });
-
-        return {
-          sensors: updatedSensors,
-          rainVolume: Math.max(0, state.rainVolume - 3.0),
-          soilSaturationPercent: Math.max(35, state.soilSaturationPercent - 2.0)
-        };
-      });
-
+        })
+      }));
       get().recalculateGlobalRisk();
+      return;
+    }
 
-      if (done) {
-        clearInterval(drainInterval);
-      }
-    }, 2000);
+    // Sem localidade ativa: redefine condições estáticas limpas de repouso (sem loops artificiais de decaimento)
+    set({
+      rainVolume: 0,
+      soilSaturationPercent: 35,
+      sensors: get().sensors.map((s) => {
+        const updated = {
+          ...s,
+          vibration: 0,
+          rainVolume: 0,
+          soilMoisture: 35
+        };
+        const geo = calcGeotechnicalStationRisk(updated);
+        return {
+          ...updated,
+          safetyFactor: geo.safetyFactor,
+          localRisk: geo.localRisk,
+          riskLevelCode: geo.riskLevelCode,
+          futureRisk: geo.localRisk
+        };
+      })
+    });
+    get().recalculateGlobalRisk();
   }
 }));
 
@@ -495,8 +516,20 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
  * Posicionador automático de Estações Geotécnicas Virtuais
  * Distribui as estações com base nos pontos de maior declividade e rupturas de relevo
  */
-export function generateOptimalSensors(matrix: number[][], maxSensors: number): GeotechnicalStation[] {
+export function generateOptimalSensors(
+  matrix: number[][],
+  maxSensors: number,
+  initialRain?: number,
+  initialMoisture?: number
+): GeotechnicalStation[] {
   if (!matrix || matrix.length === 0) return [];
+
+  const baseRain = initialRain !== undefined
+    ? initialRain
+    : (typeof window !== 'undefined' ? (useTerrainStore.getState?.()?.rainVolume ?? 0) : 0);
+  const baseMoisture = initialMoisture !== undefined
+    ? initialMoisture
+    : (typeof window !== 'undefined' ? (useTerrainStore.getState?.()?.soilSaturationPercent ?? 40) : 40);
 
   const rows = matrix.length;
   const cols = matrix[0].length;
@@ -552,8 +585,8 @@ export function generateOptimalSensors(matrix: number[][], maxSensors: number): 
 
     const stationRisk = calcGeotechnicalStationRisk({
       terrainInclination: cand.slope,
-      rainVolume: 0,
-      soilMoisture: 40
+      rainVolume: baseRain,
+      soilMoisture: baseMoisture
     });
 
     const station: GeotechnicalStation = {
@@ -562,9 +595,9 @@ export function generateOptimalSensors(matrix: number[][], maxSensors: number): 
       gridY: cand.r,
       altitude: cand.altitude,
       position: { x: cand.x, y: cand.y, z: cand.z },
-      soilMoisture: 40,
+      soilMoisture: baseMoisture,
       terrainInclination: cand.slope,
-      rainVolume: 0,
+      rainVolume: baseRain,
       vibration: 0,
       safetyFactor: stationRisk.safetyFactor,
       localRisk: stationRisk.localRisk,

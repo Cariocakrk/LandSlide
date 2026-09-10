@@ -68,8 +68,9 @@ export default function Dashboard() {
     displayRiskCode === 'R2' ? 'Amarelo' : 'Verde'
   );
 
-  const displayMoisture = current?.soilMoisture ?? soilSaturationPercent;
-  const displayRain72h = current?.rainVolume ?? rainVolume;
+  const isTerrainActive = Boolean(location || slopeData);
+  const displayMoisture = isTerrainActive ? soilSaturationPercent : (current?.soilMoisture ?? soilSaturationPercent);
+  const displayRain72h = isTerrainActive ? rainVolume : (current?.rainVolume ?? rainVolume);
   const displayInclination = current?.terrainInclination ?? (slopeData?.meanSlope || 15);
   const displayMaxSlope = slopeData?.maxSlope || 28;
 

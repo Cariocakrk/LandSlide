@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: 'Latitude e Longitude inválidas.' }, { status: 400 });
     }
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=precipitation,rain,relativehumidity_2m,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm&past_days=3&forecast_days=2&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=precipitation,rain,relativehumidity_2m,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm&past_days=3&forecast_days=2&timezone=UTC`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Falha na consulta meteorológica Open-Meteo');

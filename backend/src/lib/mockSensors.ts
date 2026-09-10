@@ -27,22 +27,22 @@ export function startSensorSimulation(io: Server) {
 
     switch (currentMode) {
       case 'normal':
-        // Modelo de Drenagem e Secagem Gradual do Solo:
-        if (soilMoisture > 35) {
-          soilMoisture = Math.max(30, soilMoisture - (1.0 + Math.random() * 0.8));
+        // Telemetria em condições normais de repouso:
+        if (soilMoisture > 38) {
+          soilMoisture = Math.max(34, soilMoisture - 0.5);
         } else {
-          soilMoisture = Math.max(20, Math.min(40, soilMoisture + noise()));
+          soilMoisture = Math.max(28, Math.min(36, soilMoisture + noise() * 0.2));
         }
         
-        terrainInclination = Math.max(8, Math.min(18, terrainInclination + noise() * 0.2));
+        terrainInclination = Math.max(8, Math.min(18, terrainInclination + noise() * 0.05));
 
-        if (rainVolume > 10) {
-          rainVolume = Math.max(0, rainVolume - (2.0 + Math.random() * 1.5));
+        if (rainVolume > 12) {
+          rainVolume = Math.max(10, rainVolume - 0.5);
         } else {
-          rainVolume = Math.max(0, Math.min(15, rainVolume + noise() * 0.5));
+          rainVolume = Math.max(6, Math.min(14, rainVolume + noise() * 0.1));
         }
 
-        groundVibration = Math.max(0, Math.min(3, groundVibration + noise() * 0.2));
+        groundVibration = Math.max(0, Math.min(1, groundVibration + noise() * 0.1));
         break;
 
       case 'heavy_rain':
