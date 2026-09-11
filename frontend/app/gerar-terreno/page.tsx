@@ -243,28 +243,49 @@ export default function GerarTerrenoPage() {
 
         {terrainData && (
           <div className="absolute inset-0 cursor-move">
-            <Canvas camera={{ position: [0, 8, 12], fov: 45 }}>
-              <ambientLight intensity={0.6} />
-              <directionalLight position={[10, 15, 8]} intensity={1.5} />
+            <Canvas camera={{ position: [0, 8.5, 12.5], fov: 45 }}>
+              <color attach="background" args={['#030712']} />
+              <fog attach="fog" args={['#030712', 18, 40]} />
+              
+              {/* Iluminação Cartográfica Tática (Hillshading & Rim Lights) */}
+              <ambientLight intensity={0.35} color="#0f172a" />
+              <directionalLight position={[-15, 22, 15]} intensity={2.2} />
+              <directionalLight position={[15, -5, -15]} intensity={0.45} color="#38bdf8" />
               <Environment preset="night" />
+
               <TerrainMesh
                 matrix={terrainData.elevationMatrix}
                 minElevation={terrainData.minElevation}
                 maxElevation={terrainData.maxElevation}
                 isCritical={riskLevelCode === 'R4'}
               />
-              <OrbitControls enableZoom={true} enablePan={true} autoRotate={false} maxPolarAngle={Math.PI / 2.2} />
+              <OrbitControls enableZoom={true} enablePan={true} autoRotate={false} maxPolarAngle={Math.PI / 2.1} minDistance={6} maxDistance={28} />
             </Canvas>
 
-            <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-gray-400 font-mono flex items-center gap-3">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Estável (&lt;15°)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block"></span> Atenção (15°-25°)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span> Alerta (25°-35°)</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Ruptura (&gt;35°)</span>
+            {/* Retículo Tático Superior Esquerdo */}
+            <div className="absolute top-4 left-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-cyan-400 font-mono flex items-center gap-2 select-none shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse inline-block" />
+              <span>RADAR ORBITAL 3D // VIGILÂNCIA DE TALUDE</span>
             </div>
 
-            <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[10px] text-indigo-300 font-mono tracking-wider">
-              MALHA DEM SRTM REAL (30M)
+            {/* Marcador Norte Cartográfico Superior Direito */}
+            <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[10px] text-gray-400 font-mono flex items-center gap-1.5 select-none shadow-lg">
+              <span className="text-cyan-400 font-black">N ▲</span>
+              <span className="text-[9px] text-gray-500">AZ 315°</span>
+            </div>
+
+            {/* Legenda Geotécnica Inferior Esquerda */}
+            <div className="absolute bottom-4 left-4 bg-slate-950/85 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/10 text-[10px] text-gray-300 font-mono flex items-center gap-3.5 shadow-2xl select-none">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shadow-[0_0_8px_rgba(16,185,129,0.6)]" /> Estável (&lt;15°)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block shadow-[0_0_8px_rgba(234,179,8,0.6)]" /> Atenção (15°-25°)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block shadow-[0_0_8px_rgba(249,115,22,0.6)]" /> Alerta (25°-35°)</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 inline-block shadow-[0_0_8px_rgba(239,68,68,0.8)]" /> Ruptura (&gt;35°)</span>
+            </div>
+
+            {/* Selo Técnico Inferior Direito */}
+            <div className="absolute bottom-4 right-4 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/20 text-[10px] text-cyan-300 font-mono tracking-wider shadow-2xl flex items-center gap-2 select-none">
+              <span className="text-[9px] text-gray-400">RESOLUÇÃO:</span>
+              <span className="font-bold text-cyan-400">SRTM-30M // CARTODB HD</span>
             </div>
           </div>
         )}

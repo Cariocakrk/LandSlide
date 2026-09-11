@@ -190,9 +190,11 @@ export default function Mapa3D() {
       </div>
 
       <Canvas shadows camera={{ position: [15, 15, 15], fov: 50 }}>
-        <color attach="background" args={['#050505']} />
-        <ambientLight intensity={0.1} />
-        <directionalLight castShadow position={[10, 20, 10]} intensity={2.5} shadow-mapSize={[2048, 2048]} />
+        <color attach="background" args={['#030712']} />
+        <fog attach="fog" args={['#030712', 20, 55]} />
+        <ambientLight intensity={0.35} color="#0f172a" />
+        <directionalLight castShadow position={[-15, 25, 15]} intensity={2.2} shadow-mapSize={[2048, 2048]} />
+        <directionalLight position={[15, -10, -15]} intensity={0.45} color="#38bdf8" />
         <PointLight color={colorHex} />
         
         {elevationMatrix ? (
