@@ -54,11 +54,10 @@ export default function Historico() {
   };
 
   useEffect(() => {
-    const isOperator = useAuthStore.getState().user?.role === 'OPERATOR';
-    if (isOperator) {
+    if (user && user.role === 'OPERATOR') {
       fetchHistory(1);
     }
-  }, []);
+  }, [user]);
 
   const downloadPDF = () => {
     // Simulando geração de PDF
@@ -196,24 +195,32 @@ export default function Historico() {
                     </td>
                  </tr>
               )}
-              {!loading && logs.map((log, i) => (
-                <tr key={log.id || i} className="hover:bg-white/5 transition-colors group">
-                  <td className="px-6 py-5 font-mono text-sm text-gray-300">{new Date(log.createdAt).toLocaleString()}</td>
-                  <td className="px-6 py-5 text-center font-mono text-gray-400">{log.soilMoisture}%</td>
-                  <td className="px-6 py-5 text-center font-mono text-gray-400">{log.terrainInclination}°</td>
-                  <td className="px-6 py-5 text-center font-mono text-gray-400">{log.rainVolume} mm/h</td>
-                  <td className="px-6 py-5 text-center font-mono text-gray-400">{log.groundVibration} Hz</td>
-                  <td className="px-6 py-5 text-right flex justify-end">
-                    <div className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-md min-w-[140px] text-center
-                       ${log.statusColor === 'Vermelho' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
-                         log.statusColor === 'Laranja' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                         log.statusColor === 'Amarelo' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
-                         'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
-                       <span className="mr-1">[{log.risk}/100]</span> {log.statusColor.toUpperCase()}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {!loading && logs.map((log, i) => {
+                const statusColor = log.statusColor || (log as any).riskStatus || 'Verde';
+                const riskVal = log.risk ?? (log as any).riskScore ?? 0;
+                const vibVal = log.groundVibration ?? (log as any).vibration ?? 0;
+
+                return (
+                  <tr key={log.id || i} className="hover:bg-white/5 transition-colors group">
+                    <td className="px-6 py-5 font-mono text-sm text-gray-300">
+                      {log.createdAt ? new Date(log.createdAt).toLocaleString() : '-'}
+                    </td>
+                    <td className="px-6 py-5 text-center font-mono text-gray-400">{log.soilMoisture ?? 0}%</td>
+                    <td className="px-6 py-5 text-center font-mono text-gray-400">{log.terrainInclination ?? 0}°</td>
+                    <td className="px-6 py-5 text-center font-mono text-gray-400">{log.rainVolume ?? 0} mm/h</td>
+                    <td className="px-6 py-5 text-center font-mono text-gray-400">{vibVal} mm/s</td>
+                    <td className="px-6 py-5 text-right flex justify-end">
+                      <div className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-md min-w-[140px] text-center
+                         ${statusColor === 'Vermelho' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
+                           statusColor === 'Laranja' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                           statusColor === 'Amarelo' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                           'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                         <span className="mr-1">[{riskVal}/100]</span> {String(statusColor).toUpperCase()}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

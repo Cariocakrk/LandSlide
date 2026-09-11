@@ -10,8 +10,11 @@ export async function GET(req: NextRequest) {
       soilMoisture: Number((35 + Math.sin(i) * 20).toFixed(1)),
       terrainInclination: Number((18 + Math.cos(i) * 12).toFixed(1)),
       rainVolume: Number((15 + i * 4).toFixed(1)),
+      groundVibration: Number((0.5 + Math.sin(i) * 2).toFixed(1)),
       vibration: Number((0.5 + Math.sin(i) * 2).toFixed(1)),
+      risk: Number((20 + i * 3.5).toFixed(1)),
       riskScore: Number((20 + i * 3.5).toFixed(1)),
+      statusColor: i > 12 ? 'Vermelho' : i > 6 ? 'Amarelo' : 'Verde',
       riskStatus: i > 12 ? 'Vermelho' : i > 6 ? 'Amarelo' : 'Verde',
       createdAt: new Date(now - i * 60000).toISOString()
     });

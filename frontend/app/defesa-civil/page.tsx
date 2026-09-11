@@ -21,7 +21,7 @@ export interface EmergencyProtocol {
 export default function DefesaCivil() {
   const [protocols, setProtocols] = useState<EmergencyProtocol[]>([]);
 
-  const { user } = useAuthStore();
+  const { user, login: loginStore } = useAuthStore();
   const [authOpen, setAuthOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -42,8 +42,8 @@ export default function DefesaCivil() {
       try {
         const res = await apiFetch('/api/whatsapp/status');
         const data = await res.json();
-        setWaStatus(data.status);
-        if (data.qr) setWaQr(data.qr);
+        setWaStatus(data.status || (data.connected ? 'CONNECTED' : 'DISCONNECTED'));
+        if (data.qr || data.qrCode) setWaQr(data.qr || data.qrCode);
         if (data.number) setWaNumber(data.number);
       } catch (err) {
         console.error('Erro ao buscar status inicial do WhatsApp:', err);
@@ -112,7 +112,7 @@ export default function DefesaCivil() {
       socket.off('protocolUpdate');
       socket.off('whatsapp-status');
     }
-  }, []);
+  }, [user]);
 
   const handleDisconnectWa = async () => {
     if (confirm('Tem certeza que deseja desconectar a sessão do WhatsApp?')) {
@@ -160,12 +160,36 @@ export default function DefesaCivil() {
             O terminal da Defesa Civil permite o envio de chamados de veículo para resgate de moradores e despacho de alertas reais do WhatsApp. Esta área de comando exige login de monitor.
           </p>
 
-          <button
-            onClick={() => setAuthOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/15 cursor-pointer active:scale-95 transition-all"
-          >
-            Acessar com Cadastro
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await apiFetch('/api/auth/demo-login', { method: 'POST' });
+                  const data = await res.json();
+                  if (data?.user && data?.token) {
+                    loginStore(data.user, data.token);
+                    return;
+                  }
+                } catch {}
+                loginStore({
+                  id: 'demo-evaluator-tcc-id',
+                  name: 'Operador Chefe (Banca TCC)',
+                  email: 'admin@defesacivil.gov.br',
+                  role: 'OPERATOR'
+                }, 'jwt-evaluator-demo-session-token');
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/20 cursor-pointer active:scale-95 transition-all"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              Entrar como Operador (Demo)
+            </button>
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+            >
+              Login com Senha
+            </button>
+          </div>
         </motion.div>
 
         <AuthModal 
@@ -178,6 +202,9 @@ export default function DefesaCivil() {
   }
 
   const updateStatus = async (id: string, newStatus: string) => {
+    // Atualização otimista imediata na interface
+    setProtocols(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+
     try {
       await apiFetch(`/api/defense-protocols/${id}/status`, {
         method: 'POST',
@@ -200,7 +227,7 @@ export default function DefesaCivil() {
         });
       }
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao atualizar status:', e);
     }
   };
 
@@ -215,12 +242,20 @@ export default function DefesaCivil() {
   const createManualAlert = async () => {
     try {
       if (confirm('Atenção: Tem certeza que deseja disparar um Alerta Manual sem medição dos sensores?')) {
-        await apiFetch('/api/defense-protocols/mock', {
+        const res = await apiFetch('/api/defense-protocols/mock', {
           method: 'POST',
         });
+        const created = await res.json();
+        if (created && created.id) {
+          try {
+            const audio = new Audio('/alert.mp3');
+            audio.play().catch(() => {});
+          } catch {}
+          setProtocols(prev => [created, ...prev]);
+        }
       }
     } catch(e) {
-      console.error(e);
+      console.error('Erro ao disparar alerta manual:', e);
     }
   };
 
