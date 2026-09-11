@@ -128,10 +128,10 @@ export function Sidebar() {
           <div className="bg-[#ffffff02] border border-white/5 rounded-xl p-3.5 space-y-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-xs">
-                {user.name.slice(0,2).toUpperCase()}
+                {(user.name || user.email || 'Operador').slice(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 overflow-hidden">
-                <div className="text-[11px] font-bold text-white truncate">{user.name}</div>
+                <div className="text-[11px] font-bold text-white truncate">{user.name || user.email || 'Operador'}</div>
                 <div className="text-[9px] text-emerald-400 font-mono uppercase tracking-wider flex items-center gap-1 mt-0.5">
                   <UserCheck className="w-3 h-3" /> Operador Civil
                 </div>

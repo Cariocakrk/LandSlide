@@ -209,7 +209,7 @@ export default function Dashboard() {
           />
           <MetricCard
             title="Alerta CEMADEN"
-            value={cemadenThreshold.split(' ')[0]}
+            value={(cemadenThreshold || 'Normal').split(' ')[0]}
             unit="limiar"
             icon={AlertTriangle}
             color="text-amber-400"

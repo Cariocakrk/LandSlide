@@ -129,24 +129,24 @@ export function LiveAlertLogs() {
                   Aguardando emissão de alertas comunitários...
                 </div>
               ) : (
-                logs.map((log) => (
-                  <div key={log.id} className="border-l-2 border-emerald-500/50 pl-3 py-1 space-y-1 hover:border-emerald-400 transition-colors">
+                logs.map((log, idx) => (
+                  <div key={log.id || idx} className="border-l-2 border-emerald-500/50 pl-3 py-1 space-y-1 hover:border-emerald-400 transition-colors">
                     <div className="flex flex-wrap items-center justify-between text-gray-500 text-[10px]">
                       <span>
-                        [{new Date(log.createdAt).toLocaleDateString()} - {new Date(log.createdAt).toLocaleTimeString()}]
+                        [{log.createdAt ? `${new Date(log.createdAt).toLocaleDateString()} - ${new Date(log.createdAt).toLocaleTimeString()}` : 'Tempo Real'}]
                       </span>
                       <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase tracking-wide">
-                        {log.status} ({log.channel})
+                        {log.status || 'EMITIDO'} ({log.channel || 'WhatsApp'})
                       </span>
                     </div>
                     <div className="text-gray-300">
-                      Protocolo: <span className="text-blue-400 font-bold">{log.protocolCode}</span> | Setor: <span className="text-yellow-500 font-bold">{log.cep}</span>
+                      Protocolo: <span className="text-blue-400 font-bold">{log.protocolCode || (log as any).sensorId || 'DEF-AUTO'}</span> | Setor: <span className="text-yellow-500 font-bold">{log.cep || 'Região Monitorada'}</span>
                     </div>
                     <p className="text-emerald-400/90 whitespace-pre-wrap leading-normal font-sans bg-black/40 p-2 rounded border border-white/5">
-                      {log.message}
+                      {log.message || 'Alerta estrutural emitido para a região.'}
                     </p>
                     <div className="text-[10px] text-gray-500 italic">
-                      📢 Disparo automático enviado para aproximadamente <strong className="text-white font-bold">{log.numResidents}</strong> moradores do quadrante de encosta.
+                      📢 Disparo automático enviado para aproximadamente <strong className="text-white font-bold">{log.numResidents || 150}</strong> moradores do quadrante de encosta.
                     </div>
                   </div>
                 ))
