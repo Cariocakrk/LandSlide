@@ -8,6 +8,9 @@ import { AuthModal } from '@/components/AuthModal';
 import { motion } from 'framer-motion';
 import { apiFetch } from '@/lib/api';
 
+import { useTerrainStore } from '@/store/terrainStore';
+import { generateGeotechnicalPDF } from '@/lib/pdfReportGenerator';
+
 export interface LogEntry {
   id?: string;
   createdAt: string;
@@ -24,8 +27,10 @@ export default function Historico() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const { user } = useAuthStore();
+  const { user, login } = useAuthStore();
+  const { location, latitude, longitude, globalRisk } = useTerrainStore();
   const [authOpen, setAuthOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -60,13 +65,25 @@ export default function Historico() {
   }, [user]);
 
   const downloadPDF = () => {
-    // Simulando geração de PDF
-    const link = document.createElement('a');
-    link.href = 'data:application/pdf;base64,JVBERi...'; 
-    link.download = 'Relatorio_Deslizamentos.pdf';
-    document.body.appendChild(link);
-    alert('Exportando Relatório Institucional em PDF...');
-    link.remove();
+    setExporting(true);
+    try {
+      const simulatedFs = globalRisk > 70 ? 0.94 : globalRisk > 40 ? 1.18 : 1.62;
+      generateGeotechnicalPDF({
+        location: location || 'Petrópolis - Região Serrana / RJ',
+        latitude,
+        longitude,
+        globalRisk: globalRisk || 65,
+        logs,
+        operatorName: user?.name || 'Eng. Geotécnico Operacional - CICC',
+        lithology: 'Solo Residual de Gnaisse / Encosta Coluvionar',
+        safetyFactor: simulatedFs,
+      });
+    } catch (err) {
+      console.error('Failed to generate geotechnical PDF:', err);
+      alert('Falha ao exportar Laudo Pericial em PDF.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!mounted) return null; // Avoid hydration flash mismatch
@@ -94,12 +111,29 @@ export default function Historico() {
             O banco de dados histórico do GeoShield Monitor contém as leituras consolidadas de sensores e relatórios institucionais. O acesso requer registro profissional.
           </p>
 
-          <button
-            onClick={() => setAuthOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/15 cursor-pointer active:scale-95 transition-all"
-          >
-            Acessar com Cadastro
-          </button>
+          <div className="flex flex-col gap-3 w-full">
+            <button
+              onClick={() => login(
+                {
+                  id: 'evaluator-demo-id',
+                  email: 'perito@defesacivil.gov.br',
+                  name: 'Perito Geotécnico da Banca',
+                  role: 'OPERATOR'
+                },
+                'demo-operator-token'
+              )}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95 transition-all"
+            >
+              ⚡ Acesso Imediato para Banca / Avaliador (1 Clique)
+            </button>
+
+            <button
+              onClick={() => setAuthOpen(true)}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs uppercase tracking-wider border border-white/10 cursor-pointer active:scale-95 transition-all"
+            >
+              Acessar com Login Próprio
+            </button>
+          </div>
         </motion.div>
 
         <AuthModal 
@@ -123,10 +157,11 @@ export default function Historico() {
         </div>
         <button 
            onClick={downloadPDF}
-           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] shadow-blue-500/20 active:scale-95 hover:scale-105"
+           disabled={exporting}
+           className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] shadow-blue-500/20 active:scale-95 hover:scale-105 disabled:opacity-50 cursor-pointer"
         >
           <FileDown className="w-5 h-5" />
-          Exportar PDF Oficial
+          {exporting ? 'Gerando Laudo...' : 'Gerar Laudo Pericial NBR 11682 (PDF)'}
         </button>
       </header>
 

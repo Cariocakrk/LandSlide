@@ -4,9 +4,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { Map, AlertTriangle, MapPin } from 'lucide-react';
+import { Map, AlertTriangle, MapPin, Layers, Activity, Mountain, Droplets } from 'lucide-react';
 import { useTerrainStore, Sensor } from '@/store/terrainStore';
-import { TerrainMesh } from '@/components/3d/TerrainMesh';
+import { TerrainMesh, GisLayerMode } from '@/components/3d/TerrainMesh';
 import { SensorSidebar } from '@/components/3d/SensorSidebar';
 import { AnimatePresence } from 'framer-motion';
 
@@ -139,6 +139,7 @@ function PointLight({ color }: { color: string }) {
 export default function Mapa3D() {
   const { location, elevationMatrix, minElevation, maxElevation, globalRisk, sensors, sensorsEnabled } = useTerrainStore();
   const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
+  const [activeLayer, setActiveLayer] = useState<GisLayerMode>('street');
 
   const colorHex = useMemo(() => {
     if (globalRisk > 70) return "#9b2c2c";
@@ -153,6 +154,7 @@ export default function Mapa3D() {
 
   return (
     <div className="flex flex-col h-full w-full relative bg-black">
+      {/* Top Left: Elevation & Location Info */}
       <div className="absolute top-6 left-6 z-10 bg-black/60 backdrop-blur-xl border border-white/10 p-5 rounded-2xl shadow-2xl max-w-sm animate-in slide-in-from-left duration-700">
         <h1 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
           <Map className="w-5 h-5 text-blue-400" /> Visão Topográfica
@@ -189,6 +191,39 @@ export default function Mapa3D() {
         </div>
       </div>
 
+      {/* Top Right: GIS Scientific Layers Selector */}
+      <div className="absolute top-6 right-6 z-10 bg-black/75 backdrop-blur-xl border border-white/10 p-3.5 rounded-2xl shadow-2xl flex flex-col gap-2.5 animate-in slide-in-from-right duration-700">
+        <div className="text-[10px] text-gray-400 font-mono uppercase tracking-wider px-1 font-bold flex items-center gap-1.5 border-b border-white/10 pb-2">
+          <Layers className="w-3.5 h-3.5 text-blue-400" /> Camadas Científicas GIS
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setActiveLayer('street')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeLayer === 'street' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Map className="w-3.5 h-3.5" /> Ruas & Arruamento
+          </button>
+          <button
+            onClick={() => setActiveLayer('slope')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeLayer === 'slope' ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Activity className="w-3.5 h-3.5" /> Declividade (CPRM)
+          </button>
+          <button
+            onClick={() => setActiveLayer('contour')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeLayer === 'contour' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Mountain className="w-3.5 h-3.5" /> Curvas de Nível
+          </button>
+          <button
+            onClick={() => setActiveLayer('drainage')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${activeLayer === 'drainage' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/30' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+          >
+            <Droplets className="w-3.5 h-3.5" /> Drenagem Pluvial
+          </button>
+        </div>
+      </div>
+
       <Canvas shadows camera={{ position: [15, 15, 15], fov: 50 }}>
         <color attach="background" args={['#030712']} />
         <fog attach="fog" args={['#030712', 20, 55]} />
@@ -204,6 +239,7 @@ export default function Mapa3D() {
               maxElevation={maxElevation} 
               autoRotate={true} 
               onSelectSensor={setSelectedSensorId}
+              layerMode={activeLayer}
             />
         ) : (
             <Terrain riskColor={colorHex} />
@@ -218,6 +254,41 @@ export default function Mapa3D() {
 
         <OrbitControls autoRotate autoRotateSpeed={0.3} maxPolarAngle={Math.PI / 2 - 0.1} minDistance={10} maxDistance={40} />
       </Canvas>
+
+      {/* Bottom Center: Scientific GIS Legend Bar */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-black/80 backdrop-blur-md border border-white/10 px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-4 text-xs font-mono text-gray-300 pointer-events-auto">
+        {activeLayer === 'street' && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Base:</span>
+            <span>CartoDB Voyager / OpenStreetMap (Resolução SRTM 30m)</span>
+          </div>
+        )}
+        {activeLayer === 'slope' && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest">CPRM / IPT:</span>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> <span>&lt;15° Estável</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span> <span>15°-25° Atenção</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span> <span>25°-35° Alto Risco</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>&gt;35° Crítico (NBR 11682)</span></div>
+          </div>
+        )}
+        {activeLayer === 'contour' && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">LiDAR / SRTM:</span>
+            <span>Isolinhas Topográficas a cada 10m de desnível</span>
+            <span className="text-gray-500">|</span>
+            <span>Cota: {minElevation}m a {maxElevation}m</span>
+          </div>
+        )}
+        {activeLayer === 'drainage' && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Hidrologia:</span>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> <span>Talvegues (Acúmulo de Fluxo)</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span> <span>Escoamento Intermediário</span></div>
+            <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span> <span>Crista Divisora</span></div>
+          </div>
+        )}
+      </div>
 
       {/* Telemetry Detail Sidebar */}
       <AnimatePresence>

@@ -178,6 +178,8 @@ function getSensorColor(risk: number) {
   return "#10b981";
 }
 
+export type GisLayerMode = 'street' | 'slope' | 'contour' | 'drainage';
+
 interface TerrainMeshProps {
   matrix: number[][] | null;
   minElevation: number;
@@ -185,9 +187,18 @@ interface TerrainMeshProps {
   isCritical?: boolean;
   autoRotate?: boolean;
   onSelectSensor?: (id: string) => void;
+  layerMode?: GisLayerMode;
 }
 
-export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, autoRotate = true, onSelectSensor }: TerrainMeshProps) {
+export function TerrainMesh({ 
+  matrix, 
+  minElevation, 
+  maxElevation, 
+  isCritical, 
+  autoRotate = true, 
+  onSelectSensor,
+  layerMode = 'street'
+}: TerrainMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const planeRef = useRef<THREE.Mesh>(null);
   const sensors = useTerrainStore(state => state.sensors);
@@ -269,7 +280,6 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const normalizedY = ((finalElevation - minElevation) / range) * vScale;
 
         // PlaneGeometry nativo tem dimensões 10x10. Calculamos matematicamente X e Y originais
-        // com base nos índices de linha r e coluna c, tornando a deformação totalmente stateless e imune a re-renders.
         const width = 10;
         const height = 10;
         const nativeX = -width / 2 + c * (width / (cols - 1));
@@ -289,19 +299,50 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         const dzdy = (matrix[nextR][c] - matrix[prevR][c]) / ((nextR - prevR || 1) * 38);
         const slopeDeg = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
 
-        // Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT):
         if (isWater) {
-          colorInstance.setHSL(0.58, 1.0, 0.45);
-        } else if (isCritical) {
-          colorInstance.setHSL(slopeDeg > 20 ? 0.0 : 0.08, 1.0, 0.5);
-        } else if (slopeDeg < 15) {
-          colorInstance.setHSL(0.33, 0.9, 0.45);
-        } else if (slopeDeg < 25) {
-          colorInstance.setHSL(0.14, 1.0, 0.5);
-        } else if (slopeDeg < 35) {
-          colorInstance.setHSL(0.06, 1.0, 0.5);
-        } else {
-          colorInstance.setHSL(0.0, 1.0, 0.5);
+          colorInstance.setRGB(0.01, 0.52, 0.78);
+        } else if (layerMode === 'street') {
+          // No modo street, cores brancas neutras com sombreamento do relevo para destacar mapa viário
+          const hillshade = Math.max(0.75, Math.min(1.0, 0.88 + (dzdx * 0.25 - dzdy * 0.25)));
+          colorInstance.setRGB(hillshade, hillshade, hillshade);
+        } else if (layerMode === 'slope') {
+          // Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT/NBR 11682):
+          if (slopeDeg < 15) {
+            colorInstance.setRGB(0.13, 0.77, 0.36); // #22c55e Verde - Estável (<15°)
+          } else if (slopeDeg < 25) {
+            colorInstance.setRGB(0.92, 0.70, 0.03); // #eab308 Amarelo - Moderado (15°-25°)
+          } else if (slopeDeg < 35) {
+            colorInstance.setRGB(0.98, 0.45, 0.09); // #f97316 Laranja - Alto Risco (25°-35°)
+          } else {
+            colorInstance.setRGB(0.94, 0.27, 0.27); // #ef4444 Vermelho - Crítico / Ruptura (>35°)
+          }
+        } else if (layerMode === 'contour') {
+          // Isolinhas / Curvas de Nível Topográficas a cada 10 metros
+          const contourInterval = 10;
+          const distToContour = Math.abs(elevation % contourInterval);
+          const isMajorContour = Math.abs(elevation % (contourInterval * 5)) < 0.6;
+          const isContourLine = distToContour < 0.45 || (contourInterval - distToContour) < 0.45;
+          
+          if (isMajorContour) {
+            colorInstance.setRGB(0.05, 0.08, 0.15); // Linha mestre de cota escura
+          } else if (isContourLine) {
+            colorInstance.setRGB(0.18, 0.26, 0.36); // Linha intermediária
+          } else {
+            // Gradiente hipsométrico de elevação
+            colorInstance.setHSL(0.55 - normalizedH * 0.45, 0.7, 0.35 + normalizedH * 0.3);
+          }
+        } else if (layerMode === 'drainage') {
+          // Análise hidrológica de talvegues e convergência de escoamento
+          const laplacian = (matrix[nextR][c] + matrix[prevR][c] + matrix[r][nextC] + matrix[r][prevC] - 4 * elevation);
+          if (laplacian > 0.35) {
+            colorInstance.setRGB(0.02, 0.88, 0.98); // Talvegue principal (Ciano intenso)
+          } else if (laplacian > 0.12) {
+            colorInstance.setRGB(0.14, 0.52, 0.95); // Canal de drenagem secundário (Azul)
+          } else if (laplacian < -0.15) {
+            colorInstance.setRGB(0.28, 0.32, 0.38); // Crista divisora de águas (Cinza rochoso)
+          } else {
+            colorInstance.setRGB(0.12, 0.16, 0.22); // Encosta intermediária
+          }
         }
         
         colors.push(colorInstance.r, colorInstance.g, colorInstance.b);
@@ -322,16 +363,16 @@ export function TerrainMesh({ matrix, minElevation, maxElevation, isCritical, au
         return skirt;
       });
     }
-  }, [matrix, minElevation, maxElevation, isCritical]);
+  }, [matrix, minElevation, maxElevation, isCritical, layerMode]);
 
-  // Atualizar textura de ruas no material do Three.js quando o CanvasTexture for gerado
+  // Atualizar textura de ruas no material do Three.js quando o CanvasTexture ou layerMode mudar
   useEffect(() => {
     if (planeRef.current && planeRef.current.material) {
       const mat = planeRef.current.material as THREE.MeshStandardMaterial;
-      mat.map = streetTexture;
+      mat.map = layerMode === 'street' ? streetTexture : null;
       mat.needsUpdate = true;
     }
-  }, [streetTexture]);
+  }, [streetTexture, layerMode]);
 
   // Posicionar os sensores visualmente via Raycaster após deformação
   useEffect(() => {
