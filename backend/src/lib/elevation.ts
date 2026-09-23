@@ -16,7 +16,8 @@ const elevationCache = new Map<string, ElevationResponse>();
  */
 function bilinearInterpolation(srcMatrix: number[][], targetSize: number): number[][] {
   const srcRows = srcMatrix.length;
-  const srcCols = srcMatrix[0].length;
+  const srcCols = srcMatrix[0]?.length || 0;
+  if (srcRows === 0 || srcCols === 0) return [];
   const result: number[][] = [];
 
   for (let i = 0; i < targetSize; i++) {
@@ -32,10 +33,10 @@ function bilinearInterpolation(srcMatrix: number[][], targetSize: number): numbe
       const c1 = Math.min(srcCols - 1, c0 + 1);
       const dc = c - c0;
 
-      const v00 = srcMatrix[r0][c0];
-      const v01 = srcMatrix[r0][c1];
-      const v10 = srcMatrix[r1][c0];
-      const v11 = srcMatrix[r1][c1];
+      const v00 = srcMatrix[r0]?.[c0] ?? 0;
+      const v01 = srcMatrix[r0]?.[c1] ?? 0;
+      const v10 = srcMatrix[r1]?.[c0] ?? 0;
+      const v11 = srcMatrix[r1]?.[c1] ?? 0;
 
       const v0 = v00 * (1 - dc) + v01 * dc;
       const v1 = v10 * (1 - dc) + v11 * dc;
@@ -106,7 +107,7 @@ export const getElevationMatrix = async (
     for (let i = 0; i < sampleGridSize; i++) {
       const row: number[] = [];
       for (let j = 0; j < sampleGridSize; j++) {
-        row.push(allElevations[i * sampleGridSize + j]);
+        row.push(allElevations[i * sampleGridSize + j] ?? 0);
       }
       rawMatrix.push(row);
     }

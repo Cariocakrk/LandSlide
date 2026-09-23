@@ -10,7 +10,8 @@ import { setActiveTerrainCep } from '../lib/whatsapp';
  */
 function computeSlopeStatistics(matrix: number[][], cellResolutionMeters: number = 38) {
   const rows = matrix.length;
-  const cols = matrix[0].length;
+  const cols = matrix[0]?.length || 0;
+  if (rows <= 1 || cols <= 1) return { meanSlope: 0, maxSlope: 0, criticalAreasPercent: 0, geomorphology: 'Indefinida' };
   let totalSlope = 0;
   let maxSlope = 0;
   let criticalSlopeCount = 0;
@@ -18,8 +19,10 @@ function computeSlopeStatistics(matrix: number[][], cellResolutionMeters: number
 
   for (let i = 0; i < rows - 1; i++) {
     for (let j = 0; j < cols - 1; j++) {
-      const dzdx = (matrix[i][j + 1] - matrix[i][j]) / cellResolutionMeters;
-      const dzdy = (matrix[i + 1][j] - matrix[i][j]) / cellResolutionMeters;
+      const rowCurr = matrix[i] ?? [];
+      const rowNext = matrix[i + 1] ?? [];
+      const dzdx = ((rowCurr[j + 1] ?? 0) - (rowCurr[j] ?? 0)) / cellResolutionMeters;
+      const dzdy = ((rowNext[j] ?? 0) - (rowCurr[j] ?? 0)) / cellResolutionMeters;
       const slopeRad = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
       const slopeDeg = slopeRad * (180 / Math.PI);
 

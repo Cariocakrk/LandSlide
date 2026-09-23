@@ -51,6 +51,8 @@ type TerrainState = {
   geomorphology: string;
   diagnosis: string;
   sensorsEnabled: boolean;
+  displayLayer: 'urban' | 'slope' | 'lidar';
+  setDisplayLayer: (layer: 'urban' | 'slope' | 'lidar') => void;
 
   // Variáveis meteorológicas reais
   rainVolume: number;           // Chuva acumulada 72h
@@ -162,6 +164,8 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   geomorphology: 'Não analisada',
   diagnosis: 'Aguardando seleção de localidade ou CEP.',
   sensorsEnabled: true,
+  displayLayer: 'urban',
+  setDisplayLayer: (layer) => set({ displayLayer: layer }),
 
   rainVolume: 0,
   accumulatedRain24h: 0,

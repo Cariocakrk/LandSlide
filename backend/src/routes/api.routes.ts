@@ -25,8 +25,7 @@ export default function createApiRouter(io: any): Router {
   router.post('/defense-protocols/mock', authMiddleware, requireRole('OPERATOR'), (req, res) => createMockProtocol(req, res, io));
   router.post('/defense-protocols/:id/status', authMiddleware, requireRole('OPERATOR'), (req, res) => updateProtocolStatus(req, res, io));
   router.post('/alerts/dispatch', authMiddleware, requireRole('OPERATOR'), (req, res) => dispatchAlert(req, res, io));
-  router.get('/alerts', authMiddleware, getAlerts);
-  router.get('/whatsapp/status', authMiddleware, requireRole('OPERATOR'), getStatus);
+  router.get('/whatsapp/status', getStatus);
   router.post('/whatsapp/disconnect', authMiddleware, requireRole('OPERATOR'), disconnect);
 
   return router;
