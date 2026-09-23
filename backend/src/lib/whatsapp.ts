@@ -182,6 +182,77 @@ export function initWhatsApp(io: any) {
         return;
       }
 
+      // NOVO: Detectar denúncia com foto ou relato de anomalia (trinca, deslizamento, rachadura, barro, desabamento)
+      const isIncidentReport = msg.hasMedia || 
+        cleanText.includes('denuncia') ||
+        cleanText.includes('denúncia') ||
+        cleanText.includes('alerta') ||
+        cleanText.includes('trinca') ||
+        cleanText.includes('rachadura') ||
+        cleanText.includes('deslizamento') ||
+        cleanText.includes('barrenta') ||
+        cleanText.includes('desabamento') ||
+        cleanText.includes('socorro') ||
+        cleanText.includes('muro');
+
+      if (isIncidentReport && text !== '1' && text !== '2' && text !== '3' && text !== '4' && !cleanText.includes('registrar')) {
+        let photoData: string | null = null;
+        if (msg.hasMedia) {
+          try {
+            const media = await msg.downloadMedia();
+            if (media && media.data) {
+              photoData = `data:${media.mimetype};base64,${media.data}`;
+            }
+          } catch (mediaErr) {
+            console.error('[WhatsApp Bot] Erro ao baixar foto:', mediaErr);
+          }
+        }
+
+        const protocolCode = `DEF-WA-${Math.floor(100000 + Math.random() * 900000)}`;
+        const incidentData = {
+          id: `wa-${Date.now()}`,
+          protocolCode,
+          phone: `+${phone}`,
+          description: text || (photoData ? 'Foto de anomalia e risco de deslizamento enviada por morador.' : 'Denúncia comunitária.'),
+          photo: photoData,
+          channel: 'WhatsApp',
+          riskLevel: 90,
+          status: 'Em análise',
+          createdAt: new Date()
+        };
+
+        try {
+          await prisma.emergencyProtocol.create({
+            data: {
+              protocolCode,
+              riskLevel: 90,
+              description: JSON.stringify({
+                text: incidentData.description,
+                phone: incidentData.phone,
+                photo: incidentData.photo
+              }),
+              status: 'Em análise'
+            }
+          });
+        } catch (dbErr) {
+          console.log('[WhatsApp Bot] Banco offline, emitindo denúncia via Socket.');
+        }
+
+        if (socketIo) {
+          socketIo.emit('emergencyAlert', incidentData);
+        }
+
+        await msg.reply(
+          `🚨 *DEFESA CIVIL - DENÚNCIA REGISTRADA!*\n\n` +
+          `📋 *Protocolo Oficial:* *${protocolCode}*\n` +
+          `📍 *Status:* Em triagem prioritária na Central CICC\n` +
+          (photoData ? `📸 *Foto da Encosta:* Anexada com sucesso e enviada aos peritos.\n\n` : `\n`) +
+          `Nossas equipes de geotecnia e resgate já receberam o seu alerta na tela da central.\n` +
+          `⚠️ *Se notar ruídos ou água barrenta descendo o morro, evacue imediatamente para um ponto seguro!*`
+        );
+        return;
+      }
+
       // Caso o usuário queira se cadastrar diretamente enviando o comando registrar
       if (cleanText.includes('registrar')) {
         const cepMatch = text.match(/\d{5}-?\d{3}/) || text.match(/\d{8}/);
@@ -343,6 +414,14 @@ export function initWhatsApp(io: any) {
           `• SAMU (Ambulância): *192*\n` +
           `• Polícia Militar: *190*`
         );
+      } else if (text === '5') {
+        await msg.reply(
+          `📸 *Canal de Denúncias Comunitárias - Defesa Civil:*\n\n` +
+          `Para registrar uma ocorrência de risco no seu setor, por favor:\n` +
+          `1. Tire uma *foto nítida* da encosta, trinca no asfalto, muro inclinado ou vazamento de lama.\n` +
+          `2. Envie a foto aqui acompanhada do endereço ou ponto de referência.\n\n` +
+          `Sua mensagem e imagem serão transmitidas imediatamente para a tela dos operadores no CICC!`
+        );
       } else {
         // Enviar Menu de Boas-vindas para qualquer outra mensagem
         await msg.reply(
@@ -352,8 +431,9 @@ export function initWhatsApp(io: any) {
           `1️⃣ *Ver Risco Atual* (Consulta os sensores do seu CEP cadastrado)\n` +
           `2️⃣ *Cadastrar Meu CEP* (Instruções para receber alertas da sua área)\n` +
           `3️⃣ *Pontos de Apoio* (Rotas de fuga e locais seguros)\n` +
-          `4️⃣ *Contatos de Emergência* (Telefones da Defesa Civil/Bombeiros)\n\n` +
-          `_Responda apenas com o número da opção desejada._`
+          `4️⃣ *Contatos de Emergência* (Telefones da Defesa Civil/Bombeiros)\n` +
+          `5️⃣ *Fazer Denúncia com Foto* (Enviar foto de trinca ou instabilidade)\n\n` +
+          `_Você também pode enviar diretamente uma foto ou relato de risco a qualquer momento._`
         );
       }
     } catch (err) {

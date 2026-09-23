@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { globalIncidents } from '../incidents/route';
 
 const defaultProtocols = [
   {
@@ -7,6 +8,9 @@ const defaultProtocols = [
     riskLevel: 85,
     description: 'Atenção máxima: encosta em Morro da Oficina com saturação crítica.',
     status: 'Em análise',
+    channel: 'Central',
+    phone: null,
+    photo: null,
     createdAt: new Date().toISOString()
   },
   {
@@ -14,13 +18,35 @@ const defaultProtocols = [
     protocolCode: 'DEF-310492',
     riskLevel: 45,
     description: 'Monitoramento preventivo de rotina em área de declividade moderada.',
-    status: 'Encaminhado',
+    status: 'Equipe enviada',
+    channel: 'Central',
+    phone: null,
+    photo: null,
     createdAt: new Date(Date.now() - 3600000).toISOString()
   }
 ];
 
 export async function GET() {
-  return NextResponse.json(defaultProtocols);
+  // Converte denúncias do WhatsApp para o formato de protocolo de emergência
+  const incidentProtocols = globalIncidents.map(inc => ({
+    id: inc.id,
+    protocolCode: inc.protocolCode,
+    riskLevel: inc.riskLevel,
+    description: inc.text,
+    status: inc.status,
+    channel: inc.channel,
+    phone: inc.phone,
+    photo: inc.photo,
+    location: inc.location,
+    createdAt: inc.createdAt
+  }));
+
+  // Mescla incidentes do WhatsApp com os protocolos padrão ordenados pelo mais recente
+  const merged = [...incidentProtocols, ...defaultProtocols].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return NextResponse.json(merged);
 }
 
 export async function POST(req: NextRequest) {
@@ -31,6 +57,9 @@ export async function POST(req: NextRequest) {
     riskLevel: body.riskLevel || 70,
     description: body.description || 'Chamado gerado pela Central de Monitoramento.',
     status: 'Em análise',
+    channel: body.channel || 'Central',
+    phone: body.phone || null,
+    photo: body.photo || null,
     createdAt: new Date().toISOString()
   };
   defaultProtocols.unshift(newProto);
