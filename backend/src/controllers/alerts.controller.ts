@@ -1,10 +1,8 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
-import { sendWhatsAppMessage } from '../lib/whatsapp';
+import { sendWhatsAppMessage, getActiveTerrainCep } from '../lib/whatsapp';
 import axios from 'axios';
-
-const prisma = new PrismaClient();
 
 export async function dispatchAlert(req: AuthRequest, res: Response, io: any) {
   try {
@@ -19,6 +17,18 @@ export async function dispatchAlert(req: AuthRequest, res: Response, io: any) {
 
     let dispatchRecord;
     try {
+      // Garantir que o protocolo pai exista na tabela EmergencyProtocol para não violar a Foreign Key
+      await prisma.emergencyProtocol.upsert({
+        where: { protocolCode },
+        update: {},
+        create: {
+          protocolCode,
+          riskLevel: 90,
+          status: 'Equipe enviada',
+          description: `Protocolo vinculado ao disparo de alerta para ${cep}`
+        }
+      });
+
       dispatchRecord = await prisma.alertDispatch.create({
         data: {
           protocolCode,
@@ -50,12 +60,17 @@ export async function dispatchAlert(req: AuthRequest, res: Response, io: any) {
 
     let matchingPhones: string[] = [];
     try {
+      const cleanDigits = cep.replace(/\D/g, '');
+      const activeCep = getActiveTerrainCep();
+      const targetDigits = cleanDigits.length === 8 ? cleanDigits : (activeCep || '');
+      const formattedCep = targetDigits.length === 8 ? `${targetDigits.slice(0, 5)}-${targetDigits.slice(5)}` : cep.trim();
+
+      const cepCandidates = Array.from(new Set([cep.trim(), targetDigits, formattedCep].filter(Boolean)));
+
       const users = await prisma.user.findMany({
         where: {
-          cep: cep.trim(),
-          phoneNumber: {
-            not: null
-          }
+          cep: { in: cepCandidates },
+          phoneNumber: { not: null }
         },
         select: { phoneNumber: true }
       });

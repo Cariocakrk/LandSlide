@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  X, Cpu, Battery, Activity, Wifi, AlertTriangle, 
+  X, Cpu, Activity, AlertTriangle, 
   Volume2, RefreshCw, Droplets, Compass, CloudRain, 
   Flame, CheckCircle, Radio, Lock
 } from 'lucide-react';
@@ -42,6 +42,30 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
     setMounted(true);
   }, []);
 
+  // Sincronização em tempo real de calibração de giroscópio e teste de sirene via WebSockets
+  useEffect(() => {
+    const handleSensorCalibrated = (data: { sensorId: string; newSlope: number }) => {
+      if (data && data.sensorId) {
+        updateSensor(data.sensorId, { terrainInclination: data.newSlope ?? 10 });
+      }
+    };
+
+    const handleSirenTested = (data: { sensorId: string }) => {
+      if (data && data.sensorId === sensorId) {
+        setSirenActive(true);
+        setTimeout(() => setSirenActive(false), 8000);
+      }
+    };
+
+    socket.on('sensorCalibrated', handleSensorCalibrated);
+    socket.on('sirenTested', handleSirenTested);
+
+    return () => {
+      socket.off('sensorCalibrated', handleSensorCalibrated);
+      socket.off('sirenTested', handleSirenTested);
+    };
+  }, [sensorId, updateSensor]);
+
   const sensor = sensors.find(s => s.id === sensorId);
 
   // Fetch telemetry history from backend
@@ -55,10 +79,10 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
         
         if (Array.isArray(data) && data.length > 0) {
           const formatted = data.map((reading: any) => ({
-            time: new Date(reading.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            moisture: Math.round(reading.moisture || 0),
-            vibration: Math.round(reading.vibration || 0),
-            slope: Math.round(reading.slope || 0)
+            time: new Date(reading.timestamp || reading.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            moisture: Math.round(reading.moisture ?? reading.soilMoisture ?? 0),
+            vibration: Math.round(reading.vibration ?? reading.groundVibration ?? 0),
+            slope: Math.round(reading.slope ?? reading.terrainInclination ?? 0)
           }));
           setHistory(formatted);
         } else {

@@ -54,7 +54,17 @@ type TerrainState = {
   displayLayer: 'urban' | 'slope' | 'lidar';
   setDisplayLayer: (layer: 'urban' | 'slope' | 'lidar') => void;
 
-  // Variáveis meteorológicas reais
+  // Variáveis meteorológicas reais (baseadas nas coordenadas do CEP)
+  temperature: number;
+  apparentTemperature: number;
+  windSpeed: number;
+  cloudCover: number;
+  weatherCode: number;
+  weatherCondition: string;
+  weatherSeverity: 'clear' | 'cloudy' | 'drizzle' | 'rain' | 'storm';
+  isRainingNow: boolean;
+  lastWeatherUpdate: string | null;
+
   rainVolume: number;           // Chuva acumulada 72h
   accumulatedRain24h: number;
   currentRainIntensity: number;
@@ -164,14 +174,24 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   geomorphology: 'Não analisada',
   diagnosis: 'Aguardando seleção de localidade ou CEP.',
   sensorsEnabled: true,
-  displayLayer: 'urban',
+  displayLayer: 'slope',
   setDisplayLayer: (layer) => set({ displayLayer: layer }),
+
+  temperature: 22.0,
+  apparentTemperature: 22.0,
+  windSpeed: 8.0,
+  cloudCover: 35,
+  weatherCode: 0,
+  weatherCondition: 'Céu Limpo / Estável',
+  weatherSeverity: 'clear',
+  isRainingNow: false,
+  lastWeatherUpdate: null,
 
   rainVolume: 0,
   accumulatedRain24h: 0,
   currentRainIntensity: 0,
   forecastRain24h: 0,
-  humidity: 0,
+  humidity: 65,
   soilSaturationPercent: 40,
 
   telemetryInterval: null,
@@ -203,10 +223,11 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     set({ drainInterval: null });
 
     const { latitude, longitude } = get();
-    if (!latitude || !longitude) return;
+    const targetLat = latitude ?? -22.505;
+    const targetLon = longitude ?? -43.178;
 
     try {
-      const resp = await apiFetch(`/api/weather/${latitude}/${longitude}`);
+      const resp = await apiFetch(`/api/weather/${targetLat}/${targetLon}`);
       const weather = await resp.json();
 
       if (weather && weather.accumulatedRain72h !== undefined) {
@@ -216,9 +237,27 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
         const forecast24h = weather.forecastRain24h || 0;
         const saturation = weather.soilSaturationPercent || 40;
         const humidity = weather.avgHumidity6h || 60;
-        const cemaden = weather.cemadenThreshold || 'Normal';
+        const cemaden = weather.cemadenThreshold || 'Normal / Observação';
+
+        const temperature = weather.temperature ?? 22.0;
+        const apparentTemperature = weather.apparentTemperature ?? temperature;
+        const windSpeed = weather.windSpeed ?? 8.0;
+        const cloudCover = weather.cloudCover ?? 40;
+        const weatherCode = weather.weatherCode ?? 0;
+        const weatherCondition = weather.weatherCondition || (rain1h > 0 ? 'Chuva em Curso' : 'Céu Parcialmente Nublado');
+        const weatherSeverity = weather.weatherSeverity || (rain1h > 0 ? 'rain' : 'clear');
+        const isRainingNow = Boolean(weather.isRainingNow || rain1h > 0);
 
         set({
+          temperature,
+          apparentTemperature,
+          windSpeed,
+          cloudCover,
+          weatherCode,
+          weatherCondition,
+          weatherSeverity,
+          isRainingNow,
+          lastWeatherUpdate: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           rainVolume: rain72h,
           accumulatedRain24h: rain24h,
           currentRainIntensity: rain1h,
@@ -281,7 +320,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
     set({ sensors, drainInterval: null });
     get().recalculateGlobalRisk();
 
-    // Sincronização periódica com backend (a cada 30s para telemetria leve)
+    // Sincronização periódica com backend (a cada 15s para telemetria leve)
     const newTelemetry = setInterval(() => {
       const currentSensors = get().sensors;
       currentSensors.forEach((sensor) => {
@@ -354,6 +393,7 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   },
 
   updateAllSensors: (partial) => {
+    const rainVal = partial.rainVolume;
     set((state) => {
       const updatedSensors = state.sensors.map((s) => {
         const updated = { ...s, ...partial };
@@ -365,7 +405,25 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
           riskLevelCode: geo.riskLevelCode
         };
       });
-      return { sensors: updatedSensors };
+      return {
+        sensors: updatedSensors,
+        ...(rainVal !== undefined
+          ? {
+              isRainingNow: rainVal > 10,
+              currentRainIntensity: rainVal > 10 ? Number((rainVal / 12).toFixed(1)) : 0,
+              weatherCondition:
+                rainVal >= 200
+                  ? 'Tempestade Extrema / Chuva Torrencial'
+                  : rainVal >= 80
+                  ? 'Chuva Forte Contínua'
+                  : rainVal > 10
+                  ? 'Chuva Moderada'
+                  : 'Céu Limpo / Estável',
+              weatherSeverity:
+                rainVal >= 200 ? 'storm' : rainVal > 10 ? 'rain' : 'clear'
+            }
+          : {})
+      };
     });
     get().recalculateGlobalRisk();
   },
@@ -460,14 +518,12 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   },
 
   restoreNormalConditions: () => {
-    // Cancela qualquer intervalo de drenagem prévio
     const dInt = get().drainInterval;
     if (dInt) clearInterval(dInt);
     set({ drainInterval: null });
 
     const { latitude, longitude } = get();
     if (latitude && longitude) {
-      // Se há coordenadas ativas, reobter a telemetria climática real da localidade
       get().fetchAndApplyWeather();
       set((state) => ({
         sensors: state.sensors.map((s) => {
@@ -491,9 +547,12 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
       return;
     }
 
-    // Sem localidade ativa: redefine condições estáticas limpas de repouso (sem loops artificiais de decaimento)
     set({
       rainVolume: 0,
+      currentRainIntensity: 0,
+      isRainingNow: false,
+      weatherCondition: 'Céu Limpo / Estável',
+      weatherSeverity: 'clear',
       soilSaturationPercent: 35,
       sensors: get().sensors.map((s) => {
         const updated = {

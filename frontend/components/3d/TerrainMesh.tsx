@@ -2,114 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sphere, Html } from '@react-three/drei';
-import { MapPin } from 'lucide-react';
+import { Html } from '@react-three/drei';
+import { AlertTriangle, Radio } from 'lucide-react';
 import * as THREE from 'three';
 import { useTerrainStore, GeotechnicalStation } from '@/store/terrainStore';
-
-// Helper functions for OpenStreetMap Web Mercator projection & tile stitching
-function lon2tile(lon: number, zoom: number): number {
-  return (lon + 180) / 360 * Math.pow(2, zoom);
-}
-
-function lat2tile(lat: number, zoom: number): number {
-  return (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom);
-}
-
-function loadTileImage(x: number, y: number, z: number): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const subdomains = ['a', 'b', 'c', 'd'];
-    const s = subdomains[Math.abs(x + y) % subdomains.length];
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    // CartoDB Voyager: mapa viário com ruas de alto contraste e nomes legíveis
-    img.src = `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
-    img.onload = () => resolve(img);
-    img.onerror = () => {
-      // Fallback 1: CartoDB dark_all
-      const darkImg = new Image();
-      darkImg.crossOrigin = 'anonymous';
-      darkImg.src = `https://${s}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
-      darkImg.onload = () => resolve(darkImg);
-      darkImg.onerror = () => {
-        // Fallback 2: OpenStreetMap
-        const osmImg = new Image();
-        osmImg.crossOrigin = 'anonymous';
-        osmImg.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-        osmImg.onload = () => resolve(osmImg);
-        osmImg.onerror = () => resolve(null);
-      };
-    };
-  });
-}
-
-async function generateStitchedMap(lat: number, lon: number, zoom: number = 15, size: number = 1024): Promise<HTMLCanvasElement> {
-  const centerX = lon2tile(lon, zoom);
-  const centerY = lat2tile(lat, zoom);
-
-  const baseTileX = Math.floor(centerX) - 1;
-  const baseTileY = Math.floor(centerY) - 1;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 768;
-  canvas.height = 768;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not get 2D context');
-
-  const promises: Promise<{ img: HTMLImageElement | null; dx: number; dy: number }>[] = [];
-  for (let dy = 0; dy < 3; dy++) {
-    for (let dx = 0; dx < 3; dx++) {
-      promises.push(
-        loadTileImage(baseTileX + dx, baseTileY + dy, zoom).then(img => ({ img, dx, dy }))
-      );
-    }
-  }
-
-  const loadedTiles = await Promise.all(promises);
-  for (const { img, dx, dy } of loadedTiles) {
-    if (img) {
-      ctx.drawImage(img, dx * 256, dy * 256);
-    }
-  }
-
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width = size;
-  outCanvas.height = size;
-  const outCtx = outCanvas.getContext('2d');
-  if (!outCtx) throw new Error('Could not get output 2D context');
-
-  const pixelOffsetX = (centerX - baseTileX) * 256;
-  const pixelOffsetY = (centerY - baseTileY) * 256;
-
-  const radians = (lat * Math.PI) / 180;
-  const tileWidthMeters = (40075016 * Math.cos(radians)) / Math.pow(2, zoom);
-  const gridWidthMeters = 1400; // ~1.4km de amplitude topográfica
-  const numTilesCovered = gridWidthMeters / tileWidthMeters;
-  const cropSize = Math.max(100, Math.min(768, Math.round(numTilesCovered * 256)));
-
-  const startX = Math.max(0, Math.min(768 - cropSize, Math.round(pixelOffsetX - cropSize / 2)));
-  const startY = Math.max(0, Math.min(768 - cropSize, Math.round(pixelOffsetY - cropSize / 2)));
-
-  outCtx.drawImage(canvas, startX, startY, cropSize, cropSize, 0, 0, size, size);
-
-  // Traçar grade topográfica elegante com linhas azuis translúcidas sobre o mapa viário
-  outCtx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
-  outCtx.lineWidth = 1.5;
-  const step = size / 24;
-  for (let p = 0; p <= size; p += step) {
-    outCtx.beginPath();
-    outCtx.moveTo(p, 0);
-    outCtx.lineTo(p, size);
-    outCtx.stroke();
-
-    outCtx.beginPath();
-    outCtx.moveTo(0, p);
-    outCtx.lineTo(size, p);
-    outCtx.stroke();
-  }
-
-  return outCanvas;
-}
 
 // Helper to build a closed geological bedrock pedestal (skirt geometry)
 function buildSkirtGeometry(
@@ -178,7 +74,7 @@ function getSensorColor(risk: number) {
   return "#10b981";
 }
 
-export type GisLayerMode = 'street' | 'slope' | 'contour' | 'drainage';
+export type GisLayerMode = 'slope' | 'contour' | 'drainage';
 
 interface TerrainMeshProps {
   matrix: number[][] | null;
@@ -197,51 +93,18 @@ export function TerrainMesh({
   isCritical, 
   autoRotate = true, 
   onSelectSensor,
-  layerMode = 'street'
+  layerMode = 'slope'
 }: TerrainMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const planeRef = useRef<THREE.Mesh>(null);
   const sensors = useTerrainStore(state => state.sensors);
-  const latitude = useTerrainStore(state => state.latitude);
-  const longitude = useTerrainStore(state => state.longitude);
+  const sensorsEnabled = useTerrainStore(state => state.sensorsEnabled);
   
   const [sensorPositions, setSensorPositions] = useState<Record<string, THREE.Vector3>>({});
-  const [streetTexture, setStreetTexture] = useState<THREE.CanvasTexture | null>(null);
   const [skirtGeometry, setSkirtGeometry] = useState<THREE.BufferGeometry | null>(null);
   const waterIndicesRef = useRef<number[]>([]);
 
-  // Hook dinâmico para gerar e costurar o mapa de ruas reais via canvas offscreen
-  useEffect(() => {
-    let active = true;
-    let currentTexture: THREE.CanvasTexture | null = null;
-
-    if (latitude !== null && longitude !== null) {
-      generateStitchedMap(latitude, longitude, 15, 1024)
-        .then((canvas) => {
-          if (!active) return;
-          const texture = new THREE.CanvasTexture(canvas);
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.needsUpdate = true;
-          currentTexture = texture;
-          setStreetTexture(texture);
-        })
-        .catch((err) => {
-          console.error("Failed to stitch street map tiles:", err);
-          if (active) setStreetTexture(null);
-        });
-    } else {
-      setStreetTexture(null);
-    }
-
-    return () => {
-      active = false;
-      if (currentTexture) {
-        currentTexture.dispose();
-      }
-    };
-  }, [latitude, longitude]);
-
-  // Deformar a malha e mapear cores (Native PlaneGeometry)
+  // Deformar a malha e mapear cores geotécnicas/topográficas (Native PlaneGeometry sem tiles externos)
   useEffect(() => {
     if (planeRef.current && matrix) {
       const geometry = planeRef.current.geometry as THREE.PlaneGeometry;
@@ -265,7 +128,6 @@ export function TerrainMesh({
         }
 
         const elevation = matrix[r][c];
-        const range = maxElevation - minElevation || 1;
         const normalizedH = (elevation - minElevation) / range;
 
         // Se for oceano ou nível do mar real (elevação <= 0), achatamos a elevação
@@ -301,21 +163,6 @@ export function TerrainMesh({
 
         if (isWater) {
           colorInstance.setRGB(0.01, 0.52, 0.78);
-        } else if (layerMode === 'street') {
-          // No modo street, cores brancas neutras com sombreamento do relevo para destacar mapa viário
-          const hillshade = Math.max(0.75, Math.min(1.0, 0.88 + (dzdx * 0.25 - dzdy * 0.25)));
-          colorInstance.setRGB(hillshade, hillshade, hillshade);
-        } else if (layerMode === 'slope') {
-          // Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT/NBR 11682):
-          if (slopeDeg < 15) {
-            colorInstance.setRGB(0.13, 0.77, 0.36); // #22c55e Verde - Estável (<15°)
-          } else if (slopeDeg < 25) {
-            colorInstance.setRGB(0.92, 0.70, 0.03); // #eab308 Amarelo - Moderado (15°-25°)
-          } else if (slopeDeg < 35) {
-            colorInstance.setRGB(0.98, 0.45, 0.09); // #f97316 Laranja - Alto Risco (25°-35°)
-          } else {
-            colorInstance.setRGB(0.94, 0.27, 0.27); // #ef4444 Vermelho - Crítico / Ruptura (>35°)
-          }
         } else if (layerMode === 'contour') {
           // Isolinhas / Curvas de Nível Topográficas a cada 10 metros
           const contourInterval = 10;
@@ -343,6 +190,17 @@ export function TerrainMesh({
           } else {
             colorInstance.setRGB(0.12, 0.16, 0.22); // Encosta intermediária
           }
+        } else {
+          // Modo padrão 'slope': Mapeamento Geotécnico Real de Suscetibilidade da Encosta (CPRM/IPT/NBR 11682)
+          if (slopeDeg < 15) {
+            colorInstance.setRGB(0.13, 0.77, 0.36); // #22c55e Verde - Estável (<15°)
+          } else if (slopeDeg < 25) {
+            colorInstance.setRGB(0.92, 0.70, 0.03); // #eab308 Amarelo - Moderado (15°-25°)
+          } else if (slopeDeg < 35) {
+            colorInstance.setRGB(0.98, 0.45, 0.09); // #f97316 Laranja - Alto Risco (25°-35°)
+          } else {
+            colorInstance.setRGB(0.94, 0.27, 0.27); // #ef4444 Vermelho - Crítico / Ruptura (>35°)
+          }
         }
         
         colors.push(colorInstance.r, colorInstance.g, colorInstance.b);
@@ -365,16 +223,7 @@ export function TerrainMesh({
     }
   }, [matrix, minElevation, maxElevation, isCritical, layerMode]);
 
-  // Atualizar textura de ruas no material do Three.js quando o CanvasTexture ou layerMode mudar
-  useEffect(() => {
-    if (planeRef.current && planeRef.current.material) {
-      const mat = planeRef.current.material as THREE.MeshStandardMaterial;
-      mat.map = layerMode === 'street' ? streetTexture : null;
-      mat.needsUpdate = true;
-    }
-  }, [streetTexture, layerMode]);
-
-  // Posicionar os sensores visualmente via Raycaster após deformação
+  // Posicionar os sensores visualmente na superfície exata da malha 3D via Raycaster
   useEffect(() => {
     if (!planeRef.current || sensors.length === 0) return;
 
@@ -384,7 +233,7 @@ export function TerrainMesh({
        const raycaster = new THREE.Raycaster();
        const updatedPositions: Record<string, THREE.Vector3> = {};
 
-       const sensorRadius = 0.15;
+       const sensorRadius = 0.12;
        const sensorHeight = sensorRadius * 2;
 
        sensors.forEach((s) => {
@@ -462,12 +311,11 @@ export function TerrainMesh({
 
   return (
     <group ref={groupRef}>
-      {/* 1. Terreno Sólido com Textura Cartográfica e Cores Geotécnicas */}
+      {/* 1. Terreno Sólido com Cores Geotécnicas e Topográficas Nativas */}
       <mesh ref={planeRef}>
         <planeGeometry args={[10, 10, matrix?.length ? matrix[0].length - 1 : 63, matrix?.length ? matrix.length - 1 : 63]} />
         <meshStandardMaterial 
           vertexColors 
-          map={streetTexture || undefined}
           wireframe={false} 
           roughness={0.75}
           metalness={0.15}
@@ -527,8 +375,8 @@ export function TerrainMesh({
         />
       )}
       
-      {/* 6. Estações Geotécnicas Industriais com pulso sísmico */}
-      {sensors.map((s) => {
+      {/* 6. Estações Geotécnicas Industriais ancoradas diretamente na superfície da encosta */}
+      {sensorsEnabled && sensors.map((s, idx) => {
          const pos = sensorPositions[s.id];
          if (!pos) return null;
 
@@ -536,6 +384,7 @@ export function TerrainMesh({
             <GeotechnicalStationProbe 
               key={s.id} 
               sensor={s} 
+              index={idx + 1}
               position={pos} 
               onSelect={onSelectSensor} 
             />
@@ -569,11 +418,12 @@ function LidarScanPlane() {
   );
 }
 
-// Subcomponente 2: Baliza de Sondagem Lidar Holográfica com HUD Tático
+// Subcomponente 2: Baliza de Sondagem Lidar Holográfica Compacta (só expande no hover)
 function LidarSurveyorBeacon({ centerHeight, centerElev }: { centerHeight: number; centerElev: number }) {
   const ring1Ref = useRef<THREE.Mesh>(null);
   const ring2Ref = useRef<THREE.Mesh>(null);
   const beaconRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
 
   const latitude = useTerrainStore(state => state.latitude);
   const longitude = useTerrainStore(state => state.longitude);
@@ -590,7 +440,7 @@ function LidarSurveyorBeacon({ centerHeight, centerElev }: { centerHeight: numbe
     }
     if (beaconRef.current) {
       beaconRef.current.rotation.y += 0.025;
-      beaconRef.current.position.y = centerHeight + 1.25 + Math.sin(t * 2.5) * 0.06;
+      beaconRef.current.position.y = centerHeight + 0.75 + Math.sin(t * 2.5) * 0.04;
     }
   });
 
@@ -599,29 +449,38 @@ function LidarSurveyorBeacon({ centerHeight, centerElev }: { centerHeight: numbe
       {/* Alvo no Solo e Anéis Concéntricos */}
       <group position={[0, centerHeight + 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <mesh>
-          <circleGeometry args={[0.07, 16]} />
+          <circleGeometry args={[0.06, 16]} />
           <meshBasicMaterial color="#00f0ff" />
         </mesh>
         <mesh ref={ring1Ref}>
-          <ringGeometry args={[0.14, 0.18, 32]} />
+          <ringGeometry args={[0.12, 0.16, 32]} />
           <meshBasicMaterial color="#38bdf8" transparent opacity={0.8} side={THREE.DoubleSide} />
         </mesh>
         <mesh ref={ring2Ref}>
-          <ringGeometry args={[0.30, 0.35, 32]} />
+          <ringGeometry args={[0.24, 0.28, 32]} />
           <meshBasicMaterial color="#0284c7" transparent opacity={0.5} side={THREE.DoubleSide} />
         </mesh>
       </group>
 
       {/* Feixe Laser Vertical de Sondagem */}
-      <mesh position={[0, centerHeight + 0.62, 0]}>
-        <cylinderGeometry args={[0.008, 0.008, 1.25, 8]} />
+      <mesh position={[0, centerHeight + 0.38, 0]}>
+        <cylinderGeometry args={[0.006, 0.006, 0.75, 8]} />
         <meshBasicMaterial color="#00f0ff" transparent opacity={0.85} />
       </mesh>
 
       {/* Baliza Holográfica Superior */}
-      <group ref={beaconRef} position={[0, centerHeight + 1.25, 0]}>
-        <mesh>
-          <octahedronGeometry args={[0.1]} />
+      <group ref={beaconRef} position={[0, centerHeight + 0.75, 0]}>
+        <mesh
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setHovered(true);
+          }}
+          onPointerOut={(e) => {
+            e.stopPropagation();
+            setHovered(false);
+          }}
+        >
+          <octahedronGeometry args={[0.09]} />
           <meshStandardMaterial 
             color="#00f0ff" 
             emissive="#00f0ff" 
@@ -632,55 +491,69 @@ function LidarSurveyorBeacon({ centerHeight, centerElev }: { centerHeight: numbe
         </mesh>
       </group>
 
-      {/* Cartão HUD Aeroespacial Suspenso */}
-      <Html position={[0, centerHeight + 1.7, 0]} center pointerEvents="none">
-        <div className="bg-slate-950/90 backdrop-blur-md border border-cyan-500/40 px-3 py-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.3)] text-left select-none font-mono min-w-[210px]">
-          <div className="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5">
-            <span className="text-[9px] font-black text-cyan-400 tracking-widest uppercase flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
-              LIDAR // ALVO CENTRAL
-            </span>
-            <span className="text-[8px] font-bold px-1.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">
-              SRTM-30M
-            </span>
-          </div>
-          <div className="text-[10px] text-gray-300 space-y-0.5 leading-tight">
-            <div className="flex justify-between">
-              <span className="text-gray-500">COORD:</span>
-              <span className="text-cyan-200 font-bold">
-                {latitude ? `${latitude.toFixed(4)}°, ${longitude?.toFixed(4)}°` : 'MAPEANDO'}
+      {/* Etiqueta HUD do Alvo Central: Pílula discreta por padrão, expande ao passar o mouse */}
+      <Html position={[0, centerHeight + 1.05, 0]} center>
+        <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className="select-none pointer-events-auto font-mono transition-all duration-200"
+        >
+          {!hovered ? (
+            <div className="bg-slate-950/90 backdrop-blur-md border border-cyan-500/40 px-2.5 py-1 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.3)] flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block" />
+              <span className="text-[9px] font-black text-cyan-300 tracking-wider">
+                ALVO CENTRAL • {centerElev.toFixed(0)}m
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">COTA Z:</span>
-              <span className="text-white font-bold">{centerElev.toFixed(0)}m NMM</span>
+          ) : (
+            <div className="bg-slate-950/95 backdrop-blur-xl border border-cyan-500/50 px-3 py-2 rounded-xl shadow-[0_0_25px_rgba(6,182,212,0.4)] text-left min-w-[205px]">
+              <div className="flex items-center justify-between border-b border-cyan-500/20 pb-1 mb-1.5">
+                <span className="text-[9px] font-black text-cyan-400 tracking-widest uppercase flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
+                  LIDAR // ALVO CENTRAL
+                </span>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">
+                  SRTM-30M
+                </span>
+              </div>
+              <div className="text-[10px] text-gray-300 space-y-0.5 leading-tight">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">COORD:</span>
+                  <span className="text-cyan-200 font-bold">
+                    {latitude ? `${latitude.toFixed(4)}°, ${longitude?.toFixed(4)}°` : 'MAPEANDO'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">COTA Z:</span>
+                  <span className="text-white font-bold">{centerElev.toFixed(0)}m NMM</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">DECLIVIDADE:</span>
+                  <span className="text-amber-300 font-bold">{slopeData?.meanSlope || 0}°</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">DECLIVIDADE:</span>
-              <span className="text-amber-300 font-bold">{slopeData?.meanSlope || 0}°</span>
-            </div>
-            <div className="flex justify-between pt-0.5 border-t border-white/5">
-              <span className="text-gray-500">STATUS:</span>
-              <span className="text-emerald-400 font-bold tracking-wider">ATIVO // VIGILÂNCIA</span>
-            </div>
-          </div>
+          )}
         </div>
       </Html>
     </group>
   );
 }
 
-// Subcomponente 3: Sonda Mecânico-Eletrônica Geotécnica com Pulso Sísmico
+// Subcomponente 3: Sonda Geotécnica ancorada na superfície com badge compacto (expande no hover)
 function GeotechnicalStationProbe({
   sensor,
+  index,
   position,
   onSelect
 }: {
   sensor: GeotechnicalStation;
+  index: number;
   position: THREE.Vector3;
   onSelect?: (id: string) => void;
 }) {
   const pulseRef = useRef<THREE.Mesh>(null);
+  const [hovered, setHovered] = useState(false);
   const colorHex = getSensorColor(sensor.localRisk);
   const isHighRisk = sensor.localRisk > 70;
 
@@ -693,11 +566,20 @@ function GeotechnicalStationProbe({
     }
   });
 
+  const badgeBorderColor =
+    sensor.riskLevelCode === 'R4'
+      ? 'border-red-500/60 bg-red-950/90 text-red-200'
+      : sensor.riskLevelCode === 'R3'
+      ? 'border-orange-500/60 bg-orange-950/90 text-orange-200'
+      : sensor.riskLevelCode === 'R2'
+      ? 'border-yellow-500/60 bg-yellow-950/90 text-yellow-200'
+      : 'border-emerald-500/50 bg-slate-950/90 text-emerald-300';
+
   return (
     <group position={[position.x, position.y, position.z]}>
       {/* Base Mecânica da Sonda (Cilindro de Liga Metálica) */}
       <mesh position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.05, 0.07, 0.16, 8]} />
+        <cylinderGeometry args={[0.045, 0.065, 0.16, 8]} />
         <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.25} />
       </mesh>
 
@@ -710,14 +592,16 @@ function GeotechnicalStationProbe({
         }}
         onPointerOver={(e) => {
           e.stopPropagation();
+          setHovered(true);
           document.body.style.cursor = 'pointer';
         }}
         onPointerOut={(e) => {
           e.stopPropagation();
+          setHovered(false);
           document.body.style.cursor = 'auto';
         }}
       >
-        <sphereGeometry args={[0.07, 16, 16]} />
+        <sphereGeometry args={[0.065, 16, 16]} />
         <meshStandardMaterial
           color={colorHex}
           emissive={colorHex}
@@ -729,7 +613,7 @@ function GeotechnicalStationProbe({
 
       {/* Anel de onda sísmica/acústica no solo */}
       <mesh ref={pulseRef} position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.10, 0.14, 24]} />
+        <ringGeometry args={[0.09, 0.13, 24]} />
         <meshBasicMaterial
           color={colorHex}
           transparent
@@ -737,6 +621,66 @@ function GeotechnicalStationProbe({
           side={THREE.DoubleSide}
         />
       </mesh>
+
+      {/* Pin / Card Ancorado Exatamente Acima do Sensor no Terreno */}
+      <Html position={[0, 0.38, 0]} center zIndexRange={[20, 0]}>
+        <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect?.(sensor.id);
+          }}
+          className="select-none pointer-events-auto cursor-pointer font-mono transition-all duration-200"
+        >
+          {!hovered ? (
+            /* Modo Compacto Limpo: não polui nem sobrepõe os outros sensores */
+            <div
+              className={`px-2 py-0.5 rounded-full border backdrop-blur-md shadow-lg flex items-center gap-1.5 whitespace-nowrap hover:scale-110 transition-transform ${badgeBorderColor}`}
+            >
+              <Radio className="w-2.5 h-2.5 animate-pulse" />
+              <span className="text-[9px] font-black tracking-wider">S{index}</span>
+              <span className="text-[8px] opacity-80">• {sensor.riskLevelCode || 'R1'}</span>
+            </div>
+          ) : (
+            /* Modo Expandido ao passar o mouse: mostra todos os dados sem bagunça */
+            <div className="bg-slate-950/95 backdrop-blur-xl text-white p-3 rounded-xl border border-blue-400/50 shadow-[0_10px_30px_rgba(0,0,0,0.9)] min-w-[175px] font-sans z-50">
+              <div className="font-bold border-b border-white/15 pb-1.5 mb-2 text-xs flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1 text-blue-300 font-mono">
+                  <AlertTriangle className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  {sensor.id}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded font-mono uppercase">
+                  {sensor.riskLevelCode || 'R1'}
+                </span>
+              </div>
+              <div className="text-[11px] space-y-1 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fator Seg:</span>
+                  <strong className={sensor.safetyFactor && sensor.safetyFactor < 1.3 ? "text-orange-400" : "text-emerald-400"}>
+                    {sensor.safetyFactor >= 99 ? 'Estável' : `FS ${sensor.safetyFactor}`}
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Declividade:</span>
+                  <strong className="text-white">{sensor.terrainInclination.toFixed(1)}°</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Saturação:</span>
+                  <strong className="text-white">{sensor.soilMoisture.toFixed(0)}%</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Chuva 72h:</span>
+                  <strong className="text-cyan-400">{sensor.rainVolume.toFixed(0)} mm</strong>
+                </div>
+              </div>
+              <div className="mt-2 pt-1 border-t border-white/10 text-[9px] text-cyan-400 text-center uppercase tracking-wider font-bold font-mono">
+                Clique para Abrir Painel
+              </div>
+            </div>
+          )}
+        </div>
+      </Html>
     </group>
   );
 }

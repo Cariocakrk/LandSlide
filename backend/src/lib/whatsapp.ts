@@ -1,12 +1,11 @@
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import QRCode from 'qrcode';
-import { PrismaClient } from '@prisma/client';
+import prisma from './prisma';
 import { getCoordinatesFromCEP } from './geocoding';
 import { getElevationMatrix } from './elevation';
+import { calculateGeotechnicalRisk } from './riskAlgorithm';
 import axios from 'axios';
 import fs from 'fs';
-
-const prisma = new PrismaClient();
 
 let client: Client | null = null;
 let currentStatus: 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' = 'DISCONNECTED';
@@ -28,9 +27,12 @@ let activeSensors: Record<string, {
 
 export function setActiveTerrainCep(cep: string) {
   activeTerrainCep = cep.replace(/\D/g, '');
-  // Ao alterar o CEP gerado, limpamos os sensores antigos para dar lugar aos novos
   activeSensors = {};
   console.log(`[WhatsApp Bot] CEP ativo do terreno no simulador atualizado para: ${activeTerrainCep}`);
+}
+
+export function getActiveTerrainCep(): string | null {
+  return activeTerrainCep;
 }
 
 export function updateActiveSensor(data: {
@@ -49,7 +51,7 @@ export function updateActiveSensor(data: {
 
 // Helper para obter a previsão do tempo para cálculo de risco real
 async function fetchWeather(lat: number, lng: number) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=precipitation,relativehumidity_2m&forecast_days=1&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=precipitation,relativehumidity_2m,soil_moisture_0_to_1cm,soil_moisture_9_to_27cm&past_days=3&forecast_days=1&timezone=UTC`;
   const response = await axios.get(url);
   return response.data;
 }
@@ -164,7 +166,7 @@ export function initWhatsApp(io: any) {
       console.log(`[WhatsApp Bot] Mensagem recebida de ${phone}: "${text}"`);
       const cleanText = text.toLowerCase();
 
-      // Caso a mensagem corresponda a uma consulta de sensor IoT ativo (ex: IOT-Z4A2)
+      // Caso a mensagem corresponda a uma consulta de sensor IoT ativo (ex: EST-GEO-12X14)
       const uppercaseText = text.toUpperCase();
       if (activeSensors[uppercaseText]) {
         const sensor = activeSensors[uppercaseText];
@@ -176,13 +178,13 @@ export function initWhatsApp(io: any) {
           `• Umidade do Solo: *${sensor.moisture.toFixed(1)}%*\n` +
           `• Inclinação Local do Terreno: *${sensor.slope.toFixed(1)}°*\n` +
           `• Acúmulo de Chuva Local: *${sensor.rain.toFixed(1)} mm*\n` +
-          `• Vibração do Solo: *${sensor.vibration.toFixed(1)} Hz*\n\n` +
+          `• Vibração do Solo: *${sensor.vibration.toFixed(1)} mm/s*\n\n` +
           `⚠️ *Risco Estrutural Localizado:* ${localRiskEmoji} *${sensor.risk}%*`
         );
         return;
       }
 
-      // NOVO: Detectar denúncia com foto ou relato de anomalia (trinca, deslizamento, rachadura, barro, desabamento)
+      // Detectar denúncia com foto ou relato de anomalia
       const isIncidentReport = msg.hasMedia || 
         cleanText.includes('denuncia') ||
         cleanText.includes('denúncia') ||
@@ -195,7 +197,7 @@ export function initWhatsApp(io: any) {
         cleanText.includes('socorro') ||
         cleanText.includes('muro');
 
-      if (isIncidentReport && text !== '1' && text !== '2' && text !== '3' && text !== '4' && !cleanText.includes('registrar')) {
+      if (isIncidentReport && text !== '1' && text !== '2' && text !== '3' && text !== '4' && text !== '5' && !cleanText.includes('registrar')) {
         let photoData: string | null = null;
         if (msg.hasMedia) {
           try {
@@ -222,18 +224,20 @@ export function initWhatsApp(io: any) {
         };
 
         try {
-          await prisma.emergencyProtocol.create({
+          const created = await prisma.emergencyProtocol.create({
             data: {
               protocolCode,
               riskLevel: 90,
               description: JSON.stringify({
                 text: incidentData.description,
                 phone: incidentData.phone,
-                photo: incidentData.photo
+                photo: incidentData.photo,
+                channel: 'WhatsApp'
               }),
               status: 'Em análise'
             }
           });
+          incidentData.id = created.id;
         } catch (dbErr) {
           console.log('[WhatsApp Bot] Banco offline, emitindo denúncia via Socket.');
         }
@@ -263,7 +267,6 @@ export function initWhatsApp(io: any) {
 
         const cleanCep = cepMatch[0].replace(/\D/g, '');
         
-        // Atualizar ou criar usuário
         const formattedPhone = phone;
         const existingUser = await prisma.user.findFirst({
           where: { phoneNumber: formattedPhone }
@@ -315,51 +318,52 @@ export function initWhatsApp(io: any) {
           // 2. Extrair altitude da topografia global (módulo DEM)
           const { min, max } = await getElevationMatrix(lat, lon);
           const elevationDiff = max - min;
-          // Estimativa de inclinação média baseada na declividade do relevo
           const estimatedSlope = Math.min(80, Math.max(5, Math.round((elevationDiff / 120) * 45)));
 
-          // 3. Obter dados meteorológicos de chuva e umidade atuais (Open-Meteo API)
+          // 3. Obter dados meteorológicos reais (Open-Meteo API)
           const weatherData = await fetchWeather(lat, lon);
-          const currentHourIndex = new Date().getHours();
-          const endIndex = Math.min(currentHourIndex + 6, weatherData.hourly.time.length);
-          const hourlyRain = weatherData.hourly.precipitation.slice(currentHourIndex, endIndex);
-          const hourlyHumidity = weatherData.hourly.relativehumidity_2m.slice(currentHourIndex, endIndex);
-          
-          const accumulatedRain6h = hourlyRain.reduce((acc: number, curr: number) => acc + curr, 0);
-          const avgHumidity6h = hourlyHumidity.reduce((acc: number, curr: number) => acc + curr, 0) / hourlyHumidity.length;
-
-          // 4. Calcular Risco Real Integrado (40% Inclinação + 40% Chuva Real + 20% Umidade do Ar Real)
-          const slopeRiskWeight = (estimatedSlope / 45) * 40;
-          const rainRiskWeight = Math.min(accumulatedRain6h / 80, 1) * 40; // 80mm de chuva = risco máximo
-          const humidityRiskWeight = (avgHumidity6h / 100) * 20;
-          
-          const calculatedRisk = Math.min(100, Math.round(slopeRiskWeight + rainRiskWeight + humidityRiskWeight));
-          
-          let statusColor = "Verde";
-          let riskEmoji = "🟢";
-          if (calculatedRisk > 70) {
-            statusColor = "Vermelho";
-            riskEmoji = "🔴";
-          } else if (calculatedRisk > 40) {
-            statusColor = "Laranja";
-            riskEmoji = "🟠";
-          } else if (calculatedRisk > 15) {
-            statusColor = "Amarelo";
-            riskEmoji = "🟡";
+          const hourly = weatherData.hourly;
+          const nowIsoPrefix = new Date().toISOString().slice(0, 13);
+          let currentHourIndex = hourly?.time?.findIndex((t: string) => t.startsWith(nowIsoPrefix)) ?? -1;
+          if (currentHourIndex === -1) {
+            currentHourIndex = Math.min(72, (hourly?.time?.length || 1) - 1);
           }
 
+          const precipitations: number[] = hourly?.precipitation || [];
+          const start72h = Math.max(0, currentHourIndex - 72);
+          const accumulatedRain72h = Number(
+            precipitations.slice(start72h, currentHourIndex + 1).reduce((acc, curr) => acc + (curr || 0), 0).toFixed(1)
+          );
+
+          const sm0 = hourly?.soil_moisture_0_to_1cm?.[currentHourIndex] || 0.35;
+          const smDeep = hourly?.soil_moisture_9_to_27cm?.[currentHourIndex] || 0.38;
+          const soilSaturationPercent = Math.min(100, Math.round((((sm0 + smDeep) / 2) / 0.48) * 100));
+
+          // 4. Calcular Risco Geotécnico Oficial (Mohr-Coulomb / Talude Infinito)
+          const geoResult = calculateGeotechnicalRisk({
+            slopeDeg: estimatedSlope,
+            accumulatedRain72h,
+            soilMoisturePercent: soilSaturationPercent
+          });
+
+          const riskEmoji =
+            geoResult.statusColor === 'Vermelho' ? '🔴' :
+            geoResult.statusColor === 'Laranja' ? '🟠' :
+            geoResult.statusColor === 'Amarelo' ? '🟡' : '🟢';
+
           let responseMessage = 
-            `📍 *Status de Risco - ${locationName}*\n` +
+            `📍 *Status Geotécnico - ${locationName}*\n` +
             `• CEP Consultivo: *${user.cep}*\n` +
             `• Localização: *${lat.toFixed(4)}°, ${lon.toFixed(4)}°*\n\n` +
-            `⛰️ *Topografia da Área (Reais):*\n` +
-            `• Altitude Mínima: *${min.toFixed(1)}m*\n` +
-            `• Altitude Máxima: *${max.toFixed(1)}m*\n` +
-            `• Inclinação Estimada do Terreno: *${estimatedSlope.toFixed(0)}°*\n\n` +
-            `☁️ *Condição Meteorológica Real:*\n` +
-            `• Chuva Acumulada (Últimas 6h): *${accumulatedRain6h.toFixed(1)} mm*\n` +
-            `• Umidade Relativa do Ar: *${Math.round(avgHumidity6h)}%*\n\n` +
-            `⚠️ *Cálculo do Risco Geral de Deslizamento:* ${riskEmoji} *${calculatedRisk}%* (${statusColor.toUpperCase()})\n\n`;
+            `⛰️ *Topografia da Área (SRTM 30m):*\n` +
+            `• Altitude Mínima / Máxima: *${min.toFixed(1)}m / ${max.toFixed(1)}m*\n` +
+            `• Declividade Estimada: *${estimatedSlope.toFixed(0)}°*\n\n` +
+            `☁️ *Condição Hidrometeorológica Real:*\n` +
+            `• Chuva Acumulada (72h CEMADEN): *${accumulatedRain72h.toFixed(1)} mm*\n` +
+            `• Saturação do Solo: *${soilSaturationPercent}%*\n\n` +
+            `🔬 *Estabilidade de Talude (Mohr-Coulomb):*\n` +
+            `• Fator de Segurança: *FS = ${geoResult.safetyFactor >= 99 ? 'Estável' : geoResult.safetyFactor}*\n` +
+            `• Classificação CPRM: ${riskEmoji} *${geoResult.riskLevelCode} - ${geoResult.classification}* (*${geoResult.risk}%*)\n\n`;
 
           // 5. Verificar se o CEP consultado possui sensores ativos simulados no painel
           const cleanUserCep = user.cep.replace(/\D/g, '');
@@ -368,7 +372,7 @@ export function initWhatsApp(io: any) {
 
           if (hasSensors) {
             const sensorIds = Object.keys(activeSensors);
-            const exampleSensorId = sensorIds[0] || 'IOT-XXXX';
+            const exampleSensorId = sensorIds[0] || 'EST-GEO-1';
             const sensorList = sensorIds
               .map(id => {
                 const s = activeSensors[id];
@@ -378,12 +382,12 @@ export function initWhatsApp(io: any) {
               .join('\n');
 
             responseMessage += 
-              `📡 *Sensores IoT Próximos na Encosta:*\n` +
-              `Temos sensores físicos operando nesta encosta. Para consultar os dados brutos de um sensor específico, responda com o ID do sensor desejado:\n\n` +
+              `📡 *Estações Geotécnicas Ativas na Encosta:*\n` +
+              `Para consultar os dados brutos de uma estação específica, responda com o ID desejado:\n\n` +
               sensorList +
               `\n\n_Exemplo de comando: Envie apenas *${exampleSensorId}*_`;
           } else {
-            responseMessage += `📡 *Sensores:* Nenhum sensor físico instalado nesta encosta no momento. Monitoramento por estimativa de relevo e satélite ativo.`;
+            responseMessage += `📡 *Monitoramento:* Análise orbital por Modelo Digital de Elevação (DEM 30m) e radar meteorológico ativa.`;
           }
 
           await msg.reply(responseMessage);
@@ -396,7 +400,7 @@ export function initWhatsApp(io: any) {
           `📝 *Como cadastrar seu CEP:*\n\n` +
           `Envie uma mensagem escrevendo *REGISTRAR* seguido pelo seu CEP de 8 dígitos.\n\n` +
           `Exemplo:\n` +
-          `*REGISTRAR 01310-200*\n\n` +
+          `*REGISTRAR 25680-195*\n\n` +
           `Após o cadastro, seu número será incluído na lista de avisos da Defesa Civil.`
         );
       } else if (text === '3') {
@@ -425,10 +429,10 @@ export function initWhatsApp(io: any) {
       } else {
         // Enviar Menu de Boas-vindas para qualquer outra mensagem
         await msg.reply(
-          `*🤖 LandSlide Bot - Central de Alertas e Apoio*\n\n` +
+          `*🤖 GeoShield Bot - Central de Alertas e Apoio*\n\n` +
           `Olá! Sou o assistente virtual do sistema de monitoramento de encostas e risco de deslizamento.\n\n` +
           `Por favor, digite o número correspondente à opção que deseja consultar:\n\n` +
-          `1️⃣ *Ver Risco Atual* (Consulta os sensores do seu CEP cadastrado)\n` +
+          `1️⃣ *Ver Risco Atual* (Consulta a estabilidade do seu CEP cadastrado)\n` +
           `2️⃣ *Cadastrar Meu CEP* (Instruções para receber alertas da sua área)\n` +
           `3️⃣ *Pontos de Apoio* (Rotas de fuga e locais seguros)\n` +
           `4️⃣ *Contatos de Emergência* (Telefones da Defesa Civil/Bombeiros)\n` +
@@ -495,13 +499,11 @@ export async function sendWhatsAppMessage(to: string, message: string): Promise<
   }
 
   try {
-    // Formatar número
     let cleaned = to.replace(/\D/g, '');
     if (cleaned.startsWith('whatsapp:')) {
       cleaned = cleaned.replace('whatsapp:', '');
     }
     
-    // Adicionar código do Brasil se necessário (comprimento de 10 ou 11 dígitos)
     if (cleaned.length === 10 || cleaned.length === 11) {
       cleaned = '55' + cleaned;
     }

@@ -12,7 +12,6 @@
     "@hookform/resolvers": "^5.2.2",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
-    "@types/qrcode": "^1.5.6",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.5",
     "jspdf": "^4.2.1",
@@ -33,6 +32,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

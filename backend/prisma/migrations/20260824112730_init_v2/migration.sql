@@ -36,7 +36,7 @@ CREATE TABLE `EmergencyProtocol` (
     `protocolCode` VARCHAR(191) NOT NULL,
     `riskLevel` INTEGER NOT NULL,
     `status` VARCHAR(191) NOT NULL DEFAULT 'Em análise',
-    `description` VARCHAR(191) NULL,
+    `description` LONGTEXT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     UNIQUE INDEX `EmergencyProtocol_protocolCode_key`(`protocolCode`),
@@ -51,7 +51,7 @@ CREATE TABLE `AlertDispatch` (
     `numResidents` INTEGER NOT NULL,
     `channel` VARCHAR(191) NOT NULL,
     `status` VARCHAR(191) NOT NULL,
-    `message` VARCHAR(191) NOT NULL,
+    `message` TEXT NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)

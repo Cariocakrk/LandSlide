@@ -6,7 +6,6 @@ import {
   AlertTriangle, 
   CloudRain, 
   ShieldAlert, 
-  Zap, 
   Activity, 
   CheckCircle2, 
   Lock, 
@@ -16,7 +15,6 @@ import {
   Send,
   UserCheck,
   Compass,
-  ArrowRight,
   BookOpen
 } from 'lucide-react';
 import { socket } from '@/lib/socket';
@@ -83,8 +81,21 @@ export default function Simulacao() {
     return calculateGeotechnicalStability(params);
   }, [slopeDeg, soilDepthM, saturationRatio, accumulatedRain72h, lithologyKey]);
 
-  // Acesso rápido de 1 clique para Avaliador / Banca
-  const handleQuickDemoLogin = () => {
+  // Acesso rápido de 1 clique para Avaliador / Banca com token JWT válido do backend
+  const handleQuickDemoLogin = async () => {
+    try {
+      const res = await apiFetch('/api/auth/demo-login', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        login(data.user, data.token);
+        return;
+      }
+    } catch {
+      // Fallback local caso o backend esteja offline
+    }
     login(
       {
         id: 'evaluator-demo-id',

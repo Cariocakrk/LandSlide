@@ -6,11 +6,12 @@ import { OrbitControls, Environment } from "@react-three/drei";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { MapPin, Mountain, AlertTriangle, ShieldCheck, Search, Loader2, Compass, Activity, Droplets } from "lucide-react";
+import { MapPin, Mountain, AlertTriangle, ShieldCheck, Search, Loader2 } from "lucide-react";
 
 import { useTerrainStore, generateOptimalSensors } from "@/store/terrainStore";
 import { calculateSlope } from "@/lib/slopeCalculation";
 import { TerrainMesh } from "@/components/3d/TerrainMesh";
+import { WeatherCornerHud } from "@/components/3d/WeatherCornerHud";
 import { apiFetch } from "@/lib/api";
 
 const searchSchema = z.object({
@@ -27,10 +28,8 @@ export default function GerarTerrenoPage() {
   const maxElevation = useTerrainStore(state => state.maxElevation);
   const reliefAmplitude = useTerrainStore(state => state.reliefAmplitude);
   const slopeData = useTerrainStore(state => state.slopeData);
-  const globalRisk = useTerrainStore(state => state.globalRisk);
   const safetyFactor = useTerrainStore(state => state.safetyFactor);
   const riskLevelCode = useTerrainStore(state => state.riskLevelCode);
-  const riskClassification = useTerrainStore(state => state.riskClassification);
   const geomorphology = useTerrainStore(state => state.geomorphology);
   const rainVolume = useTerrainStore(state => state.rainVolume);
   const setSensors = useTerrainStore(state => state.setSensors);
@@ -184,7 +183,7 @@ export default function GerarTerrenoPage() {
                 <riskBadge.icon className={`w-5 h-5 ${riskBadge.color}`} />
                 <div>
                   <span className="text-[10px] uppercase font-bold opacity-75 block text-gray-300">Classificação Oficial</span>
-                  <span className={`font-black text-sm tracking-wide ${riskBadge.color}`}>{riskBadge.label}</span>
+                  <span className={`font-black text-sm tracking-wide ${riskBadge.label}`}>{riskBadge.label}</span>
                 </div>
               </div>
               <div className="text-right">
@@ -226,7 +225,7 @@ export default function GerarTerrenoPage() {
       </div>
 
       {/* Renderizador 3D Real */}
-      <div className="xl:w-2/3 h-[500px] xl:h-[auto] min-h-[500px] rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-b from-black to-slate-900 relative shadow-2xl">
+      <div className="xl:w-2/3 h-[550px] xl:h-[auto] min-h-[550px] rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-b from-black to-slate-900 relative shadow-2xl">
         {!terrainData && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500/50">
             <Mountain className="w-20 h-20 mb-4 opacity-20" />
@@ -258,6 +257,7 @@ export default function GerarTerrenoPage() {
                 minElevation={terrainData.minElevation}
                 maxElevation={terrainData.maxElevation}
                 isCritical={riskLevelCode === 'R4'}
+                layerMode="slope"
               />
               <OrbitControls enableZoom={true} enablePan={true} autoRotate={false} maxPolarAngle={Math.PI / 2.1} minDistance={6} maxDistance={28} />
             </Canvas>
@@ -268,10 +268,9 @@ export default function GerarTerrenoPage() {
               <span>RADAR ORBITAL 3D // VIGILÂNCIA DE TALUDE</span>
             </div>
 
-            {/* Marcador Norte Cartográfico Superior Direito */}
-            <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-[10px] text-gray-400 font-mono flex items-center gap-1.5 select-none shadow-lg">
-              <span className="text-cyan-400 font-black">N ▲</span>
-              <span className="text-[9px] text-gray-500">AZ 315°</span>
+            {/* Painel de Clima Atual Detalhado no Canto Superior Direito do Mapa 3D */}
+            <div className="absolute top-4 right-4 z-20">
+              <WeatherCornerHud compact />
             </div>
 
             {/* Legenda Geotécnica Inferior Esquerda */}
@@ -285,7 +284,7 @@ export default function GerarTerrenoPage() {
             {/* Selo Técnico Inferior Direito */}
             <div className="absolute bottom-4 right-4 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/20 text-[10px] text-cyan-300 font-mono tracking-wider shadow-2xl flex items-center gap-2 select-none">
               <span className="text-[9px] text-gray-400">RESOLUÇÃO:</span>
-              <span className="font-bold text-cyan-400">SRTM-30M // CARTODB HD</span>
+              <span className="font-bold text-cyan-400">SRTM-30M // MDE GEOTÉCNICO</span>
             </div>
           </div>
         )}

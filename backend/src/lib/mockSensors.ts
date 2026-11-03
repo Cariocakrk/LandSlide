@@ -1,8 +1,6 @@
 import { Server } from 'socket.io';
 import { calculateRisk } from './riskAlgorithm';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from './prisma';
 
 export type SimulationMode = 'normal' | 'heavy_rain' | 'saturated_soil' | 'intense_vibration' | 'critical_risk';
 

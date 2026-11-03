@@ -33,38 +33,38 @@ Diferente de protótipos empíricos genéricos, o GeoShield adota o **Modelo de 
 
 $$FS = \frac{c' + c_s(1 - m) + (\gamma_{\text{sat}} \cdot z \cdot \cos^2\beta - u_w) \cdot \tan\phi'}{\gamma_{\text{sat}} \cdot z \cdot \sin\beta \cdot \cos\beta + F_{\text{vib}}}$$
 
-### Variáveis e Constantes Adotadas:
+### Variáveis e Constantes Adotadas (`riskAlgorithm.ts`):
 - $\beta$: Declividade real da encosta (extraída do Modelo Digital de Elevação Copernicus/SRTM 30m).
-- $c'$: Coesão residual efetiva do solo ($8.0\text{ kPa}$ para regolito tropical/argilo-arenoso).
-- $c_s$: Parcela de coesão adicional por sucção mátrica ($12.0\text{ kPa}$ em solo seco a semi-seco).
-- $\phi'$: Ângulo de atrito interno do solo ($26.5^\circ \approx 0.4625\text{ rad}$).
+- $c'$: Coesão residual efetiva do solo ($6.0\text{ kPa}$ para regolito tropical/colúvio).
+- $c_s$: Parcela de coesão aparente adicional por sucção mátrica ($14.0\text{ kPa}$ em solo seco a semi-seco).
+- $\phi'$: Ângulo de atrito interno efetivo do solo ($30.0^\circ \approx 0.5236\text{ rad}$).
 - $\gamma_{\text{sat}}$: Peso específico aparente do solo saturado ($18.5\text{ kN/m}^3$).
 - $z$: Profundidade estimada da superfície potencial de ruptura ($2.0\text{ m}$).
 - $m$: Coeficiente de saturação e elevação do lençol freático derivado de $P_{72\text{h}}$ (precipitação acumulada em 72h) e umidade volumétrica nas camadas $0-1\text{cm}, 1-3\text{cm}, 9-27\text{cm}$.
 - $u_w = m \cdot \gamma_w \cdot z \cdot \cos^2\beta$: Poropressão neutra atuante na base do talude.
 
-### Classificação de Risco Oficial (Normas CPRM / IPT / CEMADEN):
+### Classificação de Risco Oficial (Normas ABNT NBR 11682 / CPRM / IPT / CEMADEN):
 | Grau | Fator de Segurança ($FS$) | Risco | Ação Recomendada |
 | :---: | :---: | :---: | :--- |
-| **R1** | $FS > 1.50$ | **Baixo** (Verde) | Monitoramento de rotina e preservação vegetal |
-| **R2** | $1.20 < FS \le 1.50$ | **Médio** (Amarelo) | Vistoria preventiva e limpeza de calhas e drenagens |
-| **R3** | $1.00 < FS \le 1.20$ | **Alto** (Laranja) | Atenção Máxima da Defesa Civil e alerta aos moradores |
+| **R1** | $FS \ge 1.50$ | **Baixo** (Verde) | Monitoramento de rotina e preservação vegetal |
+| **R2** | $1.30 \le FS < 1.50$ | **Médio** (Amarelo) | Vistoria preventiva e limpeza de calhas e drenagens |
+| **R3** | $1.00 < FS < 1.30$ | **Alto** (Laranja) | Atenção Máxima da Defesa Civil e alerta aos moradores |
 | **R4** | $FS \le 1.00$ | **Muito Alto** (Vermelho) | Sirenes de emergência e evacuação imediata do perímetro |
 
 ---
 
-## 🗄️ Banco de Dados Remoto (Hostinger MySQL)
+## 🗄️ Banco de Dados Relacional (MySQL + Prisma ORM)
 
-O sistema está conectado ao banco de dados relacional MySQL hospedado na Hostinger:
+O sistema utiliza banco de dados relacional MySQL com Prisma ORM v6:
 
 - **Host:** `srv1721.hstgr.io:3306`
 - **Banco de Dados:** `u377366289_gpec08`
-- **ORM:** Prisma Client v6
-- **Modelos:** `User` (autenticação com hash bcrypt e 2FA), `SensorData` (histórico de telemetria geotécnica persistida para laudos e auditoria), `EmergencyProtocol` (ordens de serviço da Defesa Civil).
+- **ORM:** Prisma Client v6 (com singleton em `backend/src/lib/prisma.ts`)
+- **Modelos:** `User` (autenticação com hash bcrypt e 2FA), `SensorData` (histórico de telemetria geotécnica persistida para laudos e auditoria), `EmergencyProtocol` (ordens de serviço da Defesa Civil e ocorrências com suporte `LONGTEXT`) e `AlertDispatch` (histórico de disparos com chave estrangeira para `EmergencyProtocol`).
 
-A string de conexão configurada no arquivo `backend/.env` trata o caractere especial `@` da senha via URL-encoding (`%40`):
+Exemplo de configuração no arquivo `backend/.env` (a senha real não deve ser exposta publicamente; caracteres especiais como `@` devem usar URL-encoding `%40`):
 ```env
-DATABASE_URL="mysql://u377366289_gpec08:gpec08%40EC@srv1721.hstgr.io:3306/u377366289_gpec08"
+DATABASE_URL="mysql://u377366289_gpec08:********@srv1721.hstgr.io:3306/u377366289_gpec08"
 JWT_SECRET="geoshield_secret_key_prod_2026_tcc"
 PORT=3001
 ```
@@ -113,7 +113,7 @@ Para publicar o frontend na nuvem Vercel de forma limpa e sem erros:
    - Clique em `Edit` e selecione a pasta `frontend`.
 4. Adicione a seguinte Variável de Ambiente (**Environment Variable**):
    - `NEXT_PUBLIC_API_URL`: URL pública onde o seu backend estiver rodando (ex: `https://seu-backend.up.railway.app` ou `https://seu-backend.onrender.com`).
-   - *(Se deixar sem valor em desenvolvimento, o frontend usa fallback inteligente local)*.
+   - *(Se deixar sem valor, o frontend utiliza automaticamente suas rotas Serverless internas em `frontend/app/api/*`)*.
 5. Clique em **Deploy**.
 
 ---
@@ -123,35 +123,39 @@ Para publicar o frontend na nuvem Vercel de forma limpa e sem erros:
 ```text
 LandSlide/
 ├── backend/
+│   ├── insomnia.json            # Coleção completa de rotas para testes no Insomnia
 │   ├── prisma/
-│   │   ├── schema.prisma        # Modelo relacional MySQL (Users, Telemetria, Protocolos)
+│   │   ├── schema.prisma        # Modelo relacional MySQL (Users, Telemetria, Protocolos, Disparos)
+│   │   ├── migrations/          # Histórico de migrações SQL versionadas
 │   │   └── seed.ts              # População de dados iniciais e operador mestre
 │   ├── src/
 │   │   ├── lib/
+│   │   │   ├── prisma.ts        # Instância Singleton do Prisma Client
 │   │   │   ├── riskAlgorithm.ts # Motor matemático de Mohr-Coulomb e sucção mátrica
 │   │   │   ├── elevation.ts     # Integração Open-Meteo DEM 30m e interpolação bilinear
 │   │   │   ├── mockSensors.ts   # Emulador autônomo com persistência histórica MySQL
-│   │   │   └── whatsapp.ts      # Integração Baileys/Puppeteer para alertas à população
-│   │   ├── controllers/
-│   │   │   ├── terrain.controller.ts  # Declividade, amplitude e MDE topográfico
-│   │   │   └── weather.controller.ts  # Precipitação 72h e umidade multi-camada
+│   │   │   └── whatsapp.ts      # Integração WhatsApp Web / Meta API para alertas
+│   │   ├── controllers/         # Controladores modulares (alerts, history, protocols, sensors, etc.)
+│   │   ├── middlewares/         # Middleware de autenticação e verificação JWT
 │   │   └── routes/
-│   │       ├── auth.routes.ts         # Login, registro, 2FA e rota de avaliador 1-clique
-│   │       └── api.routes.ts          # Endpoints REST e sincronização WebSocket
+│   │       ├── auth.routes.ts   # Login, registro, 2FA e rota de avaliador 1-clique
+│   │       └── api.routes.ts    # Endpoints REST e sincronização WebSocket
 │   └── src/__tests__/
-│       └── riskAlgorithm.test.ts      # 12 testes unitários do modelo geotécnico
+│       └── riskAlgorithm.test.ts# 12 testes unitários do modelo geotécnico
 │
 ├── frontend/
 │   ├── app/
+│   │   ├── api/                 # Rotas Serverless Next.js para operação autônoma na Vercel
 │   │   ├── page.tsx             # Landing page institucional com acesso público
 │   │   ├── dashboard/           # Painel de controle com cards geotécnicos e CEMADEN
 │   │   ├── gerar-terreno/       # Geocodificação CEP e extração MDE em tempo real
 │   │   ├── mapa-3d/             # Visualização Three.js/WebGL com malha tridimensional
 │   │   ├── simulacao/           # Laboratório de eventos reais (Petrópolis/São Sebastião)
 │   │   ├── defesa-civil/        # Emissão e despacho de protocolos de evacuação
-│   │   └── historico/           # Auditoria e histórico de telemetria gravada no MySQL
+│   │   └── historico/           # Auditoria, filtros e laudo PDF NBR 11682
 │   ├── components/
 │   │   ├── 3d/TerrainMesh.tsx   # Shader/heatmap de suscetibilidade por vértice
+│   │   ├── 3d/SensorSidebar.tsx # Telemetria por sensor e atuadores via WebSocket
 │   │   ├── AuthModal.tsx        # Modal com botão de acesso da banca e bypass 2FA
 │   │   └── sidebar.tsx          # Navegação com indicador de status de conexão em tempo real
 │   └── store/
@@ -165,4 +169,3 @@ LandSlide/
 ## 📄 Licença e Créditos Acadêmicos
 
 Desenvolvido para fins de Trabalho de Conclusão de Curso (TCC) em Engenharia / Ciência da Computação, integrando Ciência de Dados, Engenharia Geotécnica, Modelos Numéricos de Elevação (DEM) e Sistemas Críticos de Defesa Civil.
-

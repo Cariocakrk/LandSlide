@@ -1,7 +1,7 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2026-08-13T13:40:00.000Z",
+  "__export_date": "2026-08-24T12:00:00.000Z",
   "__export_source": "insomnia.desktop.app:v2023.5.8",
   "resources": [
     {
@@ -21,10 +21,11 @@
       "created": 1723556400000,
       "name": "Base Environment",
       "data": {
-        "base_url": "http://localhost:3001"
+        "base_url": "http://localhost:3001",
+        "JWT_TOKEN_HERE": ""
       },
       "dataPropertyOrder": {
-        "&": ["base_url"]
+        "&": ["base_url", "JWT_TOKEN_HERE"]
       },
       "color": null,
       "isPrivate": false,
@@ -66,11 +67,35 @@
       "_id": "req_login",
       "parentId": "fld_auth",
       "url": "{{ _.base_url }}/api/auth/login",
-      "name": "Fazer Login",
+      "name": "Fazer Login (Inicia 2FA para Operadores)",
       "method": "POST",
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"email\": \"operador@geoshield.gov\",\n  \"password\": \"senha123\"\n}"
+        "text": "{\n  \"email\": \"admin@defesacivil.gov.br\",\n  \"password\": \"admin123\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_verify_2fa",
+      "parentId": "fld_auth",
+      "url": "{{ _.base_url }}/api/auth/verify-2fa",
+      "name": "Verificar Código 2FA e Emitir JWT",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@defesacivil.gov.br\",\n  \"code\": \"123456\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_demo_login",
+      "parentId": "fld_auth",
+      "url": "{{ _.base_url }}/api/auth/demo-login",
+      "name": "Login Rápido 1-Clique (Avaliador / Banca)",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
       },
       "_type": "request"
     },
@@ -83,13 +108,13 @@
     {
       "_id": "req_history",
       "parentId": "fld_telemetry",
-      "url": "{{ _.base_url }}/api/history?page=1",
+      "url": "{{ _.base_url }}/api/history?page=1&level=all",
       "name": "Listar Histórico Paginado",
       "method": "GET",
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"
@@ -117,19 +142,19 @@
     {
       "_id": "fld_defense",
       "parentId": "wrk_1",
-      "name": "Defesa Civil",
+      "name": "Defesa Civil e Ocorrências",
       "_type": "request_group"
     },
     {
       "_id": "req_get_protocols",
       "parentId": "fld_defense",
       "url": "{{ _.base_url }}/api/defense-protocols",
-      "name": "Listar Chamados",
+      "name": "Listar Chamados (Protocolos)",
       "method": "GET",
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"
@@ -143,7 +168,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"
@@ -157,12 +182,32 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"status\": \"Equipe enviada\"\n}"
+      },
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_incidents",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/incidents",
+      "name": "Listar Ocorrências Comunitárias",
+      "method": "GET",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_incident",
+      "parentId": "fld_defense",
+      "url": "{{ _.base_url }}/api/incidents",
+      "name": "Registrar Relato Cidadão / Viatura",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"phone\": \"5524999999999\",\n  \"text\": \"Trinca identificada no muro de contenção da Rua Teresa.\",\n  \"location\": \"Petrópolis - RJ (-22.505, -43.178)\",\n  \"riskLevel\": 85\n}"
       },
       "_type": "request"
     },
@@ -175,7 +220,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "body": {
@@ -193,7 +238,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"
@@ -213,7 +258,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "body": {
@@ -257,7 +302,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"
@@ -271,7 +316,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "value": "Bearer {{ JWT_TOKEN_HERE }}"
+          "value": "Bearer {{ _.JWT_TOKEN_HERE }}"
         }
       ],
       "_type": "request"

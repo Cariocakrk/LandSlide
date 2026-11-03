@@ -8,16 +8,16 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  name        String
-  email       String   @unique
-  password    String
-  role        String   @default("OPERATOR")
-  phoneNumber String?
-  cep         String?
+  id               String    @id @default(uuid())
+  name             String
+  email            String    @unique
+  password         String
+  role             String    @default("OPERATOR")
+  phoneNumber      String?
+  cep              String?
   twoFactorCode    String?
   twoFactorExpires DateTime?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime  @default(now())
 }
 
 model SensorData {
@@ -37,7 +37,7 @@ model EmergencyProtocol {
   protocolCode String          @unique // Generated unique protocol
   riskLevel    Int
   status       String          @default("Em análise") // "Em análise", "Equipe enviada", "Finalizado"
-  description  String?
+  description  String?         @db.LongText
   createdAt    DateTime        @default(now())
   alerts       AlertDispatch[]
 }
@@ -49,8 +49,7 @@ model AlertDispatch {
   numResidents Int
   channel      String            // "WhatsApp" | "SMS"
   status       String            // "ENVIADO" | "FALHOU"
-  message      String
+  message      String            @db.Text
   createdAt    DateTime          @default(now())
   protocol     EmergencyProtocol @relation(fields: [protocolCode], references: [protocolCode])
 }
-

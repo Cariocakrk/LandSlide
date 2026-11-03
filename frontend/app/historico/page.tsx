@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { History, FileDown, Filter, Lock } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
@@ -13,12 +13,15 @@ import { generateGeotechnicalPDF } from '@/lib/pdfReportGenerator';
 
 export interface LogEntry {
   id?: string;
+  sensorId?: string;
   createdAt: string;
   soilMoisture: number;
   terrainInclination: number;
   rainVolume: number;
   groundVibration: number;
-  risk: number;
+  risk?: number;
+  riskLevel?: number;
+  riskScore?: number;
   statusColor: string;
 }
 
@@ -28,6 +31,8 @@ export default function Historico() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [filterDate, setFilterDate] = useState<string>('');
 
   const { user, login } = useAuthStore();
   const { location, latitude, longitude, globalRisk } = useTerrainStore();
@@ -38,10 +43,39 @@ export default function Historico() {
     setMounted(true);
   }, []);
 
-  const fetchHistory = async (p: number) => {
+  const handleQuickDemoLogin = async () => {
+    try {
+      const res = await apiFetch('/api/auth/demo-login', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        login(data.user, data.token);
+        return;
+      }
+    } catch {
+      // Fallback local caso o backend esteja offline
+    }
+    login(
+      {
+        id: 'evaluator-demo-id',
+        email: 'perito@defesacivil.gov.br',
+        name: 'Perito Geotécnico da Banca',
+        role: 'OPERATOR'
+      },
+      'demo-operator-token'
+    );
+  };
+
+  const fetchHistory = async (p: number, level = filterLevel, date = filterDate) => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/history?page=${p}`);
+      const params = new URLSearchParams({ page: String(p) });
+      if (level && level !== 'all') params.set('level', level);
+      if (date) params.set('date', date);
+
+      const res = await apiFetch(`/api/history?${params.toString()}`);
       const data = await res.json();
       if (data && Array.isArray(data.data)) {
         setLogs(data.data);
@@ -60,9 +94,32 @@ export default function Historico() {
 
   useEffect(() => {
     if (user && user.role === 'OPERATOR') {
-      fetchHistory(1);
+      fetchHistory(1, filterLevel, filterDate);
     }
-  }, [user]);
+  }, [user, filterLevel, filterDate]);
+
+  // Filtro adicional no cliente para garantir consistência mesmo em modo Serverless
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const statusColor = log.statusColor || (log as any).riskStatus || 'Verde';
+      const riskVal = log.risk ?? log.riskLevel ?? log.riskScore ?? 0;
+
+      if (filterLevel === 'critical') {
+        const isCrit = statusColor === 'Vermelho' || statusColor === 'Laranja' || riskVal >= 50;
+        if (!isCrit) return false;
+      } else if (filterLevel === 'low') {
+        const isLow = statusColor === 'Verde' || statusColor === 'Amarelo' || riskVal < 50;
+        if (!isLow) return false;
+      }
+
+      if (filterDate && log.createdAt) {
+        const logDay = new Date(log.createdAt).toISOString().slice(0, 10);
+        if (logDay !== filterDate) return false;
+      }
+
+      return true;
+    });
+  }, [logs, filterLevel, filterDate]);
 
   const downloadPDF = () => {
     setExporting(true);
@@ -73,7 +130,7 @@ export default function Historico() {
         latitude,
         longitude,
         globalRisk: globalRisk || 65,
-        logs,
+        logs: filteredLogs,
         operatorName: user?.name || 'Eng. Geotécnico Operacional - CICC',
         lithology: 'Solo Residual de Gnaisse / Encosta Coluvionar',
         safetyFactor: simulatedFs,
@@ -113,15 +170,7 @@ export default function Historico() {
 
           <div className="flex flex-col gap-3 w-full">
             <button
-              onClick={() => login(
-                {
-                  id: 'evaluator-demo-id',
-                  email: 'perito@defesacivil.gov.br',
-                  name: 'Perito Geotécnico da Banca',
-                  role: 'OPERATOR'
-                },
-                'demo-operator-token'
-              )}
+              onClick={handleQuickDemoLogin}
               className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95 transition-all"
             >
               ⚡ Acesso Imediato para Banca / Avaliador (1 Clique)
@@ -169,12 +218,21 @@ export default function Historico() {
       <div className="grid lg:grid-cols-4 gap-6 mb-8">
         <div className="lg:col-span-1 border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl p-6 flex flex-col justify-center shadow-xl">
             <h3 className="font-semibold text-gray-400 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider"><Filter className="w-4 h-4"/> Filtros Ativos</h3>
-            <select className="w-full bg-black/50 border border-white/10 rounded-lg p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 transition-all">
-               <option>Todos os Níveis</option>
-               <option>Apenas Críticos (Laranja/Vermelho)</option>
-               <option>Risco Baixo (Verde/Amarelo)</option>
+            <select
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 rounded-lg p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 transition-all"
+            >
+               <option value="all">Todos os Níveis</option>
+               <option value="critical">Apenas Críticos (Laranja/Vermelho)</option>
+               <option value="low">Risco Baixo (Verde/Amarelo)</option>
             </select>
-            <input type="date" className="w-full bg-black/50 border border-white/10 rounded-lg p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 rounded-lg p-3.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+            />
         </div>
         
         <div className="lg:col-span-3 border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl p-6 shadow-xl">
@@ -216,23 +274,23 @@ export default function Historico() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#333]">
-              {loading && logs.length === 0 && (
+              {loading && filteredLogs.length === 0 && (
                  <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-lg">
                        <span className="animate-pulse">Consultando banco de dados geográfico...</span>
                     </td>
                  </tr>
               )}
-              {!loading && logs.length === 0 && (
+              {!loading && filteredLogs.length === 0 && (
                  <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-lg">
-                       <span className="opacity-60">Os logs serão gravados periodicamente e ficarão disponíveis aqui assim que forem persistidos. (Ex: rodando log periódico no express)</span>
+                       <span className="opacity-60">Nenhum registro encontrado para os filtros selecionados.</span>
                     </td>
                  </tr>
               )}
-              {!loading && logs.map((log, i) => {
+              {!loading && filteredLogs.map((log, i) => {
                 const statusColor = log.statusColor || (log as any).riskStatus || 'Verde';
-                const riskVal = log.risk ?? (log as any).riskScore ?? 0;
+                const riskVal = log.risk ?? log.riskLevel ?? log.riskScore ?? 0;
                 const vibVal = log.groundVibration ?? (log as any).vibration ?? 0;
 
                 return (

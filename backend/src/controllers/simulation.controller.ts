@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { setSimulationMode, SimulationMode } from '../lib/mockSensors';
-
-const prisma = new PrismaClient();
 
 export async function changeSimulationMode(req: AuthRequest, res: Response, io: any) {
   const { mode } = req.body;
@@ -19,9 +17,9 @@ export async function changeSimulationMode(req: AuthRequest, res: Response, io: 
     const tempAlert = {
       id: '',
       protocolCode,
-      riskLevel: mode === 'critical_risk' ? 90 : 70, // Dummy based on mode
+      riskLevel: mode === 'critical_risk' ? 90 : 70,
       description: `Simulação de ${mode} acionada automaticamente.`,
-      status: "Em análise",
+      status: 'Em análise',
       createdAt: new Date()
     };
     
@@ -34,7 +32,7 @@ export async function changeSimulationMode(req: AuthRequest, res: Response, io: 
           status: tempAlert.status
         }
       });
-      tempAlert.id = created.id; // Corrected: Use actual DB UUID
+      tempAlert.id = created.id;
     } catch (dbError) {
       console.log(`[DB] Banco offline, simulação ${mode} emitindo alerta WebSocket limpo.`);
       tempAlert.id = `sim-${Date.now()}`;

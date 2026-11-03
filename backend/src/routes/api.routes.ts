@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getHistory } from '../controllers/history.controller';
 import { changeSimulationMode } from '../controllers/simulation.controller';
-import { getProtocols, createMockProtocol, updateProtocolStatus } from '../controllers/protocols.controller';
+import { getProtocols, createMockProtocol, updateProtocolStatus, getIncidents, createIncidentReport } from '../controllers/protocols.controller';
 import { generateTerrain } from '../controllers/terrain.controller';
 import { getWeatherForecast } from '../controllers/weather.controller';
 import { receiveSensorData, getSensorHistory } from '../controllers/sensors.controller';
@@ -12,11 +12,14 @@ import { authMiddleware, requireRole } from '../middlewares/auth.middleware';
 export default function createApiRouter(io: any): Router {
   const router = Router();
 
-  // Public/IoT/Utility Routes (Sem JWT para facilidade do simulador de sensores e geocodificação)
+  // Public/IoT/Utility Routes (Sem JWT para facilidade do simulador de sensores, console de alertas e geocodificação)
   router.post('/sensor-data', receiveSensorData);
   router.get('/sensor-history/:sensorId', getSensorHistory);
   router.post('/generate-terrain', generateTerrain);
   router.get('/weather/:lat/:lng', getWeatherForecast);
+  router.get('/alerts', getAlerts);
+  router.get('/incidents', getIncidents);
+  router.post('/incidents', (req, res) => createIncidentReport(req, res, io));
 
   // Authenticated/Operator Routes (Protegidas por JWT)
   router.get('/history', authMiddleware, getHistory);

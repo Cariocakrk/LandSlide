@@ -111,7 +111,7 @@ export function generateGeotechnicalPDF({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('2. ANÁLISE DE EQUILÍBRIO-LIMITE E MODELO GEOMECÂNICO (MOHR-COULOMB / BISHOP)', margin + 3, curY + 5);
+  doc.text('2. ANÁLISE DE EQUILÍBRIO-LIMITE E MODELO GEOMECÂNICO (MOHR-COULOMB / TALUDE INFINITO)', margin + 3, curY + 5);
 
   // Box com FS
   const fsBoxX = margin + 3;
@@ -131,15 +131,15 @@ export function generateGeotechnicalPDF({
   doc.setFontSize(6.5);
   doc.text(fsStatusText, fsBoxX + 3, fsBoxY + 22);
 
-  // Detalhes da Equação
+  // Detalhes da Equação alinhados com riskAlgorithm.ts e geotechnicalEngine.ts
   doc.setTextColor(30, 41, 59);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   const eqX = margin + 52;
-  doc.text('Formulações Normativas: Equilíbrio Limite τ = c\' + (σ - u) · tan(φ\') | Método das Lamelas', eqX, fsBoxY + 5);
-  doc.text('• Coesão Efetiva Aparente (c\'): 14.5 kPa  |  Ângulo de Atrito Efetivo (φ\'): 27.5°', eqX, fsBoxY + 10);
-  doc.text('• Peso Específico Natural (γ): 18.5 kN/m³  |  Espessura da Camada Coluvionar: 4.80 m', eqX, fsBoxY + 15);
-  doc.text('• Limiar de Ruptura ABNT NBR 11682: FS mínimo exigido para segurança humana é 1.50', eqX, fsBoxY + 20);
+  doc.text('Formulações Normativas: Equilíbrio Limite τ = c\' + c_s(1 - m) + (σ - u) · tan(φ\') | Talude Infinito', eqX, fsBoxY + 5);
+  doc.text('• Coesão Efetiva (c\'): 6.0 kPa  |  Sucção Mátrica (c_s): 14.0 kPa  |  Ângulo de Atrito (φ\'): 30.0°', eqX, fsBoxY + 10);
+  doc.text('• Peso Específico Saturado (γ_sat): 18.5 kN/m³  |  Profundidade Potencial de Ruptura (z): 2.00 m', eqX, fsBoxY + 15);
+  doc.text('• Limiar de Ruptura ABNT NBR 11682: FS mínimo exigido para segurança humana é 1.50 (R1)', eqX, fsBoxY + 20);
   
   if (safetyFactor < 1.3) {
     doc.setTextColor(185, 28, 28);
@@ -206,7 +206,8 @@ export function generateGeotechnicalPDF({
     doc.line(margin, curY + 6, margin + contentWidth, curY + 6);
 
     const logDate = new Date(log.createdAt).toLocaleString('pt-BR');
-    const riskLabel = log.risk > 70 ? 'CRÍTICO' : log.risk > 40 ? 'ALERTA' : log.risk > 20 ? 'ATENÇÃO' : 'NORMAL';
+    const riskVal = log.risk ?? log.riskLevel ?? log.riskScore ?? 0;
+    const riskLabel = riskVal > 70 ? 'CRÍTICO' : riskVal > 40 ? 'ALERTA' : riskVal > 20 ? 'ATENÇÃO' : 'NORMAL';
 
     doc.setTextColor(51, 65, 85);
     let xPos = margin + 2;
@@ -225,11 +226,11 @@ export function generateGeotechnicalPDF({
     doc.text((log.groundVibration || 0).toFixed(3) + ' g', xPos, curY + 4.2);
     xPos += 26;
 
-    doc.text(log.risk + '/100', xPos, curY + 4.2);
+    doc.text(riskVal + '/100', xPos, curY + 4.2);
     xPos += 24;
 
-    if (log.risk > 70) doc.setTextColor(185, 28, 28);
-    else if (log.risk > 40) doc.setTextColor(217, 119, 6);
+    if (riskVal > 70) doc.setTextColor(185, 28, 28);
+    else if (riskVal > 40) doc.setTextColor(217, 119, 6);
     else doc.setTextColor(22, 101, 52);
 
     doc.setFont('helvetica', 'bold');

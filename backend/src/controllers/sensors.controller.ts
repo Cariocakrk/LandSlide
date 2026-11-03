@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { updateActiveSensor } from '../lib/whatsapp';
-
-const prisma = new PrismaClient();
 
 type SensorReading = {
   sensorId: string;
@@ -49,18 +47,18 @@ export async function receiveSensorData(req: AuthRequest, res: Response) {
 
     try {
       const numericRisk = Math.round(risk || 0);
-      let statusColor = "Verde";
+      let statusColor = 'Verde';
       if (numericRisk > 70) {
-        statusColor = "Vermelho";
+        statusColor = 'Vermelho';
       } else if (numericRisk > 40) {
-        statusColor = "Laranja";
+        statusColor = 'Laranja';
       } else if (numericRisk > 15) {
-        statusColor = "Amarelo";
+        statusColor = 'Amarelo';
       }
 
       await prisma.sensorData.create({
         data: {
-          sensorId, // Added: Save sensorId to DB as well!
+          sensorId,
           soilMoisture: parseFloat(moisture || 0),
           terrainInclination: parseFloat(slope || 0),
           rainVolume: parseFloat(rain || 0),
@@ -70,7 +68,7 @@ export async function receiveSensorData(req: AuthRequest, res: Response) {
         }
       });
     } catch (dbError) {
-      console.log(`[DB] Banco offline ou ocupado, telemetria registrada apenas em memória local.`);
+      console.log('[DB] Banco offline ou ocupado, telemetria registrada apenas em memória local.');
     }
 
     res.status(200).json({ success: true, message: 'Telemetria registrada' });
