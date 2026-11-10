@@ -1,386 +1,435 @@
 import Link from 'next/link';
 import { 
-  ShieldAlert, ArrowRight, Mountain, CloudRain, Cpu, Radio, 
-  MapPin, CheckCircle2, AlertOctagon, Terminal, Smartphone, 
-  Database, Compass, Layers, ShieldCheck, Activity, FileText
+  ArrowRight, Mountain, CloudRain, Cpu, 
+  MapPin, CheckCircle2, AlertOctagon, Smartphone, 
+  Activity, FileCheck, ShieldCheck
 } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen relative bg-[#020408] font-sans text-slate-100 overflow-x-hidden selection:bg-blue-500/30 selection:text-blue-200">
-      {/* Dynamic Background Atmosphere */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-blue-600/10 blur-[140px]" />
-        <div className="absolute top-[40%] right-[-10%] w-[500px] h-[500px] rounded-full bg-orange-600/10 blur-[160px]" />
-        <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-600/10 blur-[160px]" />
-        {/* Subtle grid pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
-          }}
+    <div className="flex flex-col min-h-screen relative bg-[var(--background)] text-[var(--foreground)] font-sans overflow-x-hidden">
+      {/* Plano de Fundo Artístico de Montanhas & Curvas Topográficas (Visão Geral) */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] overflow-hidden z-0 select-none">
+        {/* Brilho solar suave inspirado no sol da logo LandSlide */}
+        <div
+          className="absolute top-10 left-1/2 -translate-x-1/2 w-[540px] h-[540px] rounded-full blur-[120px] opacity-20"
+          style={{ background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)' }}
+        />
+
+        {/* Silhueta de Montanhas em Camadas + Curvas de Nível Topográficas */}
+        <svg
+          viewBox="0 0 1440 640"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="xMidYMax slice"
+          className="w-full h-full object-cover"
+        >
+          {/* Curvas de nível topográficas no céu */}
+          <g stroke="var(--mountain-stroke)" strokeOpacity="0.7" strokeWidth="1.2" strokeDasharray="6 6">
+            <path d="M-100 170 Q 360 85, 760 180 T 1540 135" />
+            <path d="M-100 225 Q 420 125, 820 225 T 1540 185" />
+            <path d="M-100 280 Q 460 175, 880 270 T 1540 235" />
+          </g>
+
+          {/* Cordilheira Distante (Camada 1) */}
+          <path
+            d="M0 445 L180 315 L360 400 L590 255 L810 385 L1060 240 L1280 360 L1440 285 L1440 640 L0 640 Z"
+            fill="var(--mountain-1)"
+          />
+
+          {/* Encosta Intermediária (Camada 2) */}
+          <path
+            d="M0 490 L250 365 L480 445 L750 310 L990 435 L1220 330 L1440 410 L1440 640 L0 640 Z"
+            fill="var(--mountain-2)"
+          />
+
+          {/* Estratos Geológicos / Talude Frontal (Camada 3) */}
+          <path
+            d="M0 535 L320 420 L620 500 L930 385 L1190 485 L1440 425 L1440 640 L0 640 Z"
+            fill="var(--mountain-3)"
+          />
+
+          {/* Linhas de crista iluminadas em destaque */}
+          <path
+            d="M0 445 L180 315 L360 400 L590 255 L810 385 L1060 240 L1280 360 L1440 285"
+            stroke="var(--mountain-stroke)"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M0 490 L250 365 L480 445 L750 310 L990 435 L1220 330 L1440 410"
+            stroke="var(--mountain-stroke)"
+            strokeWidth="2.2"
+          />
+          <path
+            d="M0 535 L320 420 L620 500 L930 385 L1190 485 L1440 425"
+            stroke="var(--mountain-stroke)"
+            strokeWidth="2.5"
+          />
+        </svg>
+
+        {/* Gradiente de fusão suave com o fundo da página */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-48"
+          style={{ background: 'linear-gradient(to top, var(--background) 12%, transparent 100%)' }}
         />
       </div>
 
-      {/* 1. Ticker Tático Superior de Operação CICC */}
-      <div className="w-full bg-black/60 border-b border-white/10 px-4 py-2.5 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono">
+      {/* Barra Institucional Superior */}
+      <div className="w-full bg-[var(--surface)]/90 backdrop-blur-md border-b border-[var(--border)] px-6 py-3 sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--foreground-muted)]">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="flex items-center gap-2 text-emerald-400 font-bold tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              SISTEMA INTEGRADO DE DEFESA CIVIL
+            <span className="flex items-center gap-2 text-[#2E6F40] dark:text-[#52B788] font-semibold">
+              <span className="w-2 h-2 rounded-full bg-[#2E6F40] dark:bg-[#52B788]" />
+              Monitoramento Geotécnico Ativo
             </span>
-            <span className="text-gray-700">|</span>
-            <span className="text-gray-400">
-              RADAR ORBITAL: <strong className="text-slate-200">SRTM-30M ATIVO</strong>
+            <span className="text-[var(--border-strong)]">•</span>
+            <span>
+              Altimetria por Satélite: <strong className="text-[var(--foreground)]">SRTM 30m</strong>
             </span>
-            <span className="text-gray-700 hidden sm:inline">|</span>
-            <span className="text-gray-400 hidden sm:inline">
-              EQUILÍBRIO DE TALUDE: <strong className="text-cyan-400">MOHR-COULOMB</strong>
+            <span className="text-[var(--border-strong)] hidden sm:inline">•</span>
+            <span className="hidden sm:inline">
+              Modelo Físico: <strong className="text-[var(--primary)]">Mohr-Coulomb</strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-gray-400">
-            <span>CONFORMIDADE: <strong className="text-white font-semibold">NBR 11682</strong></span>
-            <span className="text-gray-700">|</span>
-            <span className="text-blue-400 flex items-center gap-1 font-bold">
-              <Radio className="w-3 h-3 animate-spin" /> DISPATCH SERVERLESS ONLINE
-            </span>
+          <div className="flex items-center gap-3">
+            <span>Norma Técnica: <strong className="text-[var(--foreground)]">ABNT NBR 11682</strong></span>
           </div>
         </div>
       </div>
 
-      <main className="flex-1 p-6 md:p-12 max-w-7xl mx-auto w-full z-10 pt-10 md:pt-16 space-y-20">
-        {/* 2. Hero Section de Alto Impacto */}
-        <header className="text-center max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-1000">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 text-blue-400 mb-6 border border-blue-500/30 text-xs font-mono tracking-widest uppercase font-semibold shadow-inner">
-            <ShieldAlert className="w-4 h-4 text-blue-400" />
-            Centro de Comando e Inteligência Geotécnica
+      <main className="flex-1 px-6 md:px-12 py-12 md:py-16 max-w-6xl mx-auto w-full space-y-20 relative z-10">
+        {/* Hero Section Sóbria e Profissional */}
+        <header className="text-center max-w-3xl mx-auto space-y-6">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <div className="w-24 h-24 flex items-center justify-center">
+              <img
+                src="/logo-landslide.png"
+                alt="LandSlide Logo"
+                className="w-full h-full object-contain logo-light"
+              />
+              <img
+                src="/logo-landslide-dark.png"
+                alt="LandSlide Logo"
+                className="w-full h-full object-contain logo-dark"
+              />
+            </div>
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/25 text-xs font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Engenharia Geotécnica & Gestão de Risco de Taludes
+            </div>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight mb-6 text-white drop-shadow-md leading-[1.08]">
-            Previsão Preditiva de <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-500 to-rose-600">
-              Deslizamentos de Encostas
-            </span>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[var(--foreground)] leading-[1.15]">
+            Previsão e Monitoramento de{' '}
+            <span className="text-[var(--primary)]">Estabilidade de Encostas</span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-normal">
-            Plataforma computacional de alerta antecipado para a <strong>Defesa Civil</strong>. 
-            Modela a topografia em alta resolução via satélite, calcula o <strong>Fator de Segurança (FS)</strong> em tempo real com mecânica dos solos e dispara alertas automatizados de evacuação para comunidades em risco.
+          <p className="text-base sm:text-lg text-[var(--foreground-muted)] max-w-2xl mx-auto leading-relaxed">
+            Plataforma corporativa e institucional para análise topográfica em 3D, cálculo contínuo do{' '}
+            <strong className="text-[var(--foreground)] font-semibold">Fator de Segurança (FS)</strong> segundo a norma ABNT NBR 11682 e resposta preventiva a eventos pluviométricos extremos.
           </p>
 
-          {/* Ações de Comando Principais */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          {/* Ações Principais */}
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3.5">
             <Link 
               href="/dashboard" 
-              className="relative group inline-flex h-13 items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-500 px-8 text-sm font-bold text-white shadow-xl shadow-blue-600/25 transition-all duration-200 cursor-pointer active:scale-95 uppercase tracking-wider font-mono gap-2 border border-blue-400/30"
+              className="inline-flex h-12 items-center justify-center rounded-xl theme-btn-primary px-7 text-sm font-semibold shadow-sm cursor-pointer active:scale-98 gap-2"
             >
-              <Activity className="w-4 h-4 text-blue-200" />
-              <span>Acessar Centro de Comando</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Activity className="w-4 h-4" />
+              <span>Abrir Painel de Controle</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+
+            <Link 
+              href="/mapa-3d" 
+              className="inline-flex h-12 items-center justify-center rounded-xl theme-btn-secondary px-6 text-sm font-semibold shadow-xs cursor-pointer active:scale-98 gap-2"
+            >
+              <Mountain className="w-4 h-4 text-[var(--primary)]" />
+              <span>Explorar Mapa 3D</span>
             </Link>
 
             <Link 
               href="/gerar-terreno" 
-              className="inline-flex h-13 items-center justify-center rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/30 backdrop-blur-xl px-7 text-sm font-bold text-white shadow-lg transition-all duration-200 cursor-pointer active:scale-95 uppercase tracking-wider font-mono gap-2"
+              className="inline-flex h-12 items-center justify-center rounded-xl theme-btn-secondary px-6 text-sm font-semibold shadow-xs cursor-pointer active:scale-98 gap-2"
             >
-              <MapPin className="w-4 h-4 text-cyan-400" />
-              <span>Topografia 3D por CEP</span>
-            </Link>
-
-            <Link 
-              href="/defesa-civil" 
-              className="inline-flex h-13 items-center justify-center rounded-xl border border-white/10 bg-black/40 hover:bg-white/5 hover:border-orange-500/40 px-6 text-sm font-bold text-orange-400 shadow-md transition-all duration-200 cursor-pointer active:scale-95 uppercase tracking-wider font-mono gap-2"
-            >
-              <Terminal className="w-4 h-4 text-orange-400" />
-              <span>Terminal de Despacho</span>
+              <MapPin className="w-4 h-4 text-[var(--primary)]" />
+              <span>Consultar por CEP</span>
             </Link>
           </div>
 
-          {/* Quick Telemetry Bar do Hero */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-14 pt-8 border-t border-white/10 text-left">
-            <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
-              <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Resolução Topográfica</span>
-              <strong className="text-sm font-mono text-cyan-400 font-bold block mt-0.5">SRTM 30m Submétrica</strong>
-              <span className="text-[10px] text-gray-500">Mapeamento nacional</span>
+          {/* Indicadores Resumidos */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-8 text-left">
+            <div className="theme-card rounded-xl p-4">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)] block">Base Topográfica</span>
+              <strong className="text-base font-bold text-[var(--foreground)] block mt-0.5">SRTM 30 Metros</strong>
+              <span className="text-xs text-[var(--primary)] font-medium">Cobertura nacional</span>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
-              <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Motor Geotécnico</span>
-              <strong className="text-sm font-mono text-emerald-400 font-bold block mt-0.5">Mohr-Coulomb</strong>
-              <span className="text-[10px] text-gray-500">Talude Infinito (FS)</span>
+            <div className="theme-card rounded-xl p-4">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)] block">Equilíbrio-Limite</span>
+              <strong className="text-base font-bold text-[var(--foreground)] block mt-0.5">Mohr-Coulomb</strong>
+              <span className="text-xs text-[#2E6F40] dark:text-[#52B788] font-medium">ABNT NBR 11682</span>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
-              <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Limiar CEMADEN</span>
-              <strong className="text-sm font-mono text-amber-400 font-bold block mt-0.5">100 mm / 72h</strong>
-              <span className="text-[10px] text-gray-500">Gatilho de ruptura</span>
+            <div className="theme-card rounded-xl p-4">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)] block">Referência Pluviométrica</span>
+              <strong className="text-base font-bold text-[var(--foreground)] block mt-0.5">100 mm / 72h</strong>
+              <span className="text-xs text-[#B47B1C] font-medium">Limiar CEMADEN</span>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 backdrop-blur-sm">
-              <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Alerta Comunitário</span>
-              <strong className="text-sm font-mono text-purple-400 font-bold block mt-0.5">&lt; 3 Segundos</strong>
-              <span className="text-[10px] text-gray-500">WhatsApp geolocalizado</span>
+            <div className="theme-card rounded-xl p-4">
+              <span className="text-[11px] font-medium text-[var(--foreground-muted)] block">Documentação</span>
+              <strong className="text-base font-bold text-[var(--foreground)] block mt-0.5">Laudo Pericial PDF</strong>
+              <span className="text-xs text-[var(--foreground-muted)]">Hash SHA-256 auditável</span>
             </div>
           </div>
         </header>
 
-        {/* 3. Os 4 Pilares da Arquitetura Tecnológica */}
+        {/* Os 4 Pilares da Plataforma */}
         <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/10 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-[var(--border)] pb-4">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-blue-400 font-bold">
-                Arquitetura de Missão Crítica
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">
+                Estrutura Técnica
               </span>
-              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1">
-                Pilares Tecnológicos da Plataforma
+              <h2 className="text-2xl font-bold text-[var(--foreground)] tracking-tight mt-1">
+                Pilares da Plataforma LandSlide
               </h2>
             </div>
-            <span className="text-xs font-mono text-gray-500">
-              ENGENHARIA GEOTÉCNICA + COMPUTAÇÃO IOT
+            <span className="text-xs text-[var(--foreground-muted)]">
+              Geotecnia Aplicada • Hidrologia • Gêmeo Digital 3D
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Pilar 1 */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 flex flex-col justify-between hover:border-cyan-500/40 transition-all shadow-xl group border-t-cyan-500/20">
+            <div className="theme-card rounded-2xl p-6 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-4 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] mb-4">
                   <Mountain className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">Modelagem 3D Orbital</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Geração instantânea de maquetes tridimensionais volumétricas a partir do CEP. Interpolação de malha com declividade zonal, cota absoluta e base geológica extrudada.
+                <h3 className="text-base font-bold text-[var(--foreground)] mb-2">Modelagem Topográfica 3D</h3>
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  Reconstrução tridimensional do relevo a partir do CEP ou coordenada geográfica, com análise de declividade, curvas de nível e linhas de drenagem.
                 </p>
               </div>
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-cyan-400/80 font-bold">
-                SRTM 30M // THREE.JS ENGINE
+              <div className="pt-4 border-t border-[var(--border)] mt-5 text-[11px] font-medium text-[var(--primary)]">
+                Modelo Digital de Elevação (MDE)
               </div>
             </div>
 
-            {/* Pilar 2 */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 flex flex-col justify-between hover:border-emerald-500/40 transition-all shadow-xl group border-t-emerald-500/20">
+            <div className="theme-card rounded-2xl p-6 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] mb-4">
                   <Cpu className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">Cálculo de Talude Infinito</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Avaliação contínua do Fator de Segurança (FS) pelo critério de ruptura de Mohr-Coulomb, integrando ângulo de atrito interno, coesão aparente e perda de sucção por saturação.
+                <h3 className="text-base font-bold text-[var(--foreground)] mb-2">Motor de Mohr-Coulomb</h3>
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  Cálculo contínuo do Fator de Segurança (FS) por equilíbrio-limite de talude infinito, considerando coesão efetiva, atrito interno e poropressão.
                 </p>
               </div>
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-emerald-400/80 font-bold">
-                TAU_R / TAU_D // EQUILÍBRIO LIMITE
+              <div className="pt-4 border-t border-[var(--border)] mt-5 text-[11px] font-medium text-[var(--primary)]">
+                Memória de Cálculo Aberta
               </div>
             </div>
 
-            {/* Pilar 3 */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 flex flex-col justify-between hover:border-purple-500/40 transition-all shadow-xl group border-t-purple-500/20">
+            <div className="theme-card rounded-2xl p-6 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] mb-4">
                   <CloudRain className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">Sincronização Meteorológica</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Integração com dados pluviométricos reais e limiares críticos do CEMADEN. Acúmulo hidrológico de 72 horas e projeção preditiva de chuvas para as próximas 24 horas.
+                <h3 className="text-base font-bold text-[var(--foreground)] mb-2">Hidrologia em Tempo Real</h3>
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  Consulta meteorológica hiperlocal por CEP com precipitação atual, chuva acumulada em 72 horas, previsão de 24 horas e saturação do solo.
                 </p>
               </div>
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-purple-400/80 font-bold">
-                CEMADEN // OPEN-METEO RADAR
+              <div className="pt-4 border-t border-[var(--border)] mt-5 text-[11px] font-medium text-[var(--primary)]">
+                Telemetria Pluviométrica 72h
               </div>
             </div>
 
-            {/* Pilar 4 */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 flex flex-col justify-between hover:border-orange-500/40 transition-all shadow-xl group border-t-orange-500/20">
+            <div className="theme-card rounded-2xl p-6 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
               <div>
-                <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 mb-4 group-hover:scale-105 transition-transform">
+                <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)] mb-4">
                   <Smartphone className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">Evacuação Automatizada</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Disparo automático de comunicados de emergência e rotas de fuga pelo WhatsApp aos moradores cadastrados no setor, sincronizado com o despacho de viaturas da Defesa Civil.
+                <h3 className="text-base font-bold text-[var(--foreground)] mb-2">Operação & Laudos ABNT</h3>
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  Recebimento de vistorias de campo geolocalizadas com foto via WhatsApp e emissão de Laudo Pericial em PDF com assinatura SHA-256.
                 </p>
               </div>
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-orange-400/80 font-bold">
-                WHATSAPP BOT // DESPACHO CICC
+              <div className="pt-4 border-t border-[var(--border)] mt-5 text-[11px] font-medium text-[var(--primary)]">
+                Auditoria & Resposta Rápida
               </div>
             </div>
           </div>
         </section>
 
-        {/* 4. Dossiês Técnicos Forenses (Casos Históricos Notáveis) */}
+        {/* Casos Históricos e Validação Técnica */}
         <section className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/10 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-[var(--border)] pb-4">
             <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-red-400 font-bold flex items-center gap-1.5">
-                <AlertOctagon className="w-3.5 h-3.5" /> Engenharia Forense de Desastres Naturais
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)] flex items-center gap-1.5">
+                <FileCheck className="w-3.5 h-3.5" /> Validação Retrospectiva
               </span>
-              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight mt-1">
-                Casos Históricos e Validação Operacional
+              <h2 className="text-2xl font-bold text-[var(--foreground)] tracking-tight mt-1">
+                Estudos de Caso e Calibração Geotécnica
               </h2>
             </div>
-            <span className="text-xs font-mono text-gray-500">
-              RETRO-ANÁLISE DE RUPTURA ESTRUTURAL
+            <span className="text-xs text-[var(--foreground-muted)]">
+              Retro-análise de escorregamentos translacionais no Brasil
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Dossiê 01: Petrópolis */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between relative overflow-hidden group hover:border-red-500/30 transition-all border-t-red-500/30">
+            {/* Estudo 01: Petrópolis */}
+            <div className="theme-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
-                      DOSSIÊ #01
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-[var(--primary-soft)] text-[var(--primary)]">
+                      Estudo #01
                     </span>
-                    <span className="text-xs font-mono text-gray-500">FEVEREIRO / 2022</span>
+                    <span className="text-xs text-[var(--foreground-muted)]">Fevereiro / 2022</span>
                   </div>
-                  <span className="text-[10px] font-mono text-red-400 font-bold uppercase tracking-wider">
-                    259.8 mm em 3h
+                  <span className="text-xs font-mono font-semibold text-[#A92626] dark:text-[#F87171]">
+                    259,8 mm em 3h
                   </span>
                 </div>
 
-                <h3 className="text-xl font-black text-white flex items-center gap-2">
-                  Tragédia de Petrópolis, RJ
-                  <span className="text-xs font-mono text-gray-500 font-normal">(Morro da Oficina)</span>
+                <h3 className="text-lg font-bold text-[var(--foreground)]">
+                  Morro da Oficina — Petrópolis, RJ
                 </h3>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Uma tromba d&apos;água catastrófica provocou a supersaturação do manto coluvionar sobre rocha impermeável. 
-                  Com declividades superiores a 38°, a poropressão neutralizou a coesão efetiva do solo, gerando deslizamentos translacionais múltiplos e fluxo de detritos com velocidade superior a 40 km/h.
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  Precipitação extrema provocou a supersaturação do manto coluvionar sobre rocha cristalina. Com declividades superiores a 38°, a elevação da poropressão reduziu a tensão efetiva e levou o Fator de Segurança abaixo de 1,00.
                 </p>
 
-                <div className="bg-black/40 border border-white/5 rounded-xl p-3.5 space-y-1.5 font-mono text-[11px]">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Mecanismo de Ruptura:</span>
-                    <strong className="text-white">Escorregamento Translacional Raso</strong>
+                <div className="theme-card-muted rounded-xl p-3.5 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Mecanismo de Ruptura:</span>
+                    <strong className="text-[var(--foreground)]">Escorregamento Translacional Raso</strong>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Classificação CPRM:</span>
-                    <strong className="text-red-400">R4 - Risco Muito Alto / Iminente</strong>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Classificação ABNT / CPRM:</span>
+                    <strong className="text-[#A92626] dark:text-[#F87171]">R4 — Risco Muito Alto</strong>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Resposta do GeoShield:</span>
-                    <strong className="text-cyan-400">FS &lt; 1.00 com 4h de Antecedência</strong>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Detecção no Modelo:</span>
+                    <strong className="text-[var(--primary)]">FS &lt; 1,00 com 4h de antecedência</strong>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-gray-500 flex items-center justify-between">
-                <span>IMPACTO: 241 VÍTIMAS FATAIS</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> PREVENÍVEL VIA IOT
+              <div className="pt-4 border-t border-[var(--border)] mt-4 text-xs text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Cenário disponível no Simulador</span>
+                <span className="text-[#2E6F40] dark:text-[#52B788] font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Calibrado
                 </span>
               </div>
             </div>
 
-            {/* Dossiê 02: São Sebastião */}
-            <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/30 transition-all border-t-orange-500/30">
+            {/* Estudo 02: São Sebastião */}
+            <div className="theme-card rounded-2xl p-6 sm:p-7 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-bold">
-                      DOSSIÊ #02
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-[var(--primary-soft)] text-[var(--primary)]">
+                      Estudo #02
                     </span>
-                    <span className="text-xs font-mono text-gray-500">FEVEREIRO / 2023</span>
+                    <span className="text-xs text-[var(--foreground-muted)]">Fevereiro / 2023</span>
                   </div>
-                  <span className="text-[10px] font-mono text-orange-400 font-bold uppercase tracking-wider">
-                    683 mm em 24h (Recorde Nacional)
+                  <span className="text-xs font-mono font-semibold text-[#C85A17] dark:text-[#FB923C]">
+                    683,0 mm em 24h
                   </span>
                 </div>
 
-                <h3 className="text-xl font-black text-white flex items-center gap-2">
-                  Desastre da Serra do Mar, SP
-                  <span className="text-xs font-mono text-gray-500 font-normal">(São Sebastião)</span>
+                <h3 className="text-lg font-bold text-[var(--foreground)]">
+                  Serra do Mar — São Sebastião, SP
                 </h3>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  O maior volume acumulado de chuvas já registrado na história do Brasil saturou as encostas íngremes da Serra do Mar. 
-                  A liquefação de solos e escorregamentos de grande porte soterraram a Vila Sahy e interditaram integralmente a rodovia Rio-Santos (SP-055).
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  O maior volume pluviométrico em 24 horas registrado no país saturou as vertentes íngremes da Serra do Mar, provocando corridas de detritos e interdição total da rodovia SP-055 (Rio-Santos).
                 </p>
 
-                <div className="bg-black/40 border border-white/5 rounded-xl p-3.5 space-y-1.5 font-mono text-[11px]">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Mecanismo de Ruptura:</span>
-                    <strong className="text-white">Corridas de Massa e Detritos (Debris Flows)</strong>
+                <div className="theme-card-muted rounded-xl p-3.5 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Mecanismo de Ruptura:</span>
+                    <strong className="text-[var(--foreground)]">Corrida de Detritos (Debris Flow)</strong>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Classificação CPRM:</span>
-                    <strong className="text-red-400">R4 - Colapso Geomorfológico</strong>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Classificação ABNT / CPRM:</span>
+                    <strong className="text-[#A92626] dark:text-[#F87171]">R4 — Colapso de Talude</strong>
                   </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Resposta do GeoShield:</span>
-                    <strong className="text-cyan-400">Limiar CEMADEN Violado na 1ª Hora</strong>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">Detecção no Modelo:</span>
+                    <strong className="text-[var(--primary)]">Limiar 100mm superado na 1ª hora</strong>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/5 mt-4 text-[10px] font-mono text-gray-500 flex items-center justify-between">
-                <span>IMPACTO: 65 VÍTIMAS FATAIS</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> EVACUAÇÃO VIA WHATSAPP
+              <div className="pt-4 border-t border-[var(--border)] mt-4 text-xs text-[var(--foreground-muted)] flex items-center justify-between">
+                <span>Cenário disponível no Simulador</span>
+                <span className="text-[#2E6F40] dark:text-[#52B788] font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Calibrado
                 </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* 5. Banner de Chamada para Ação Estratégica */}
-        <section className="border border-white/15 bg-gradient-to-r from-blue-950/40 via-slate-950/80 to-slate-900/40 rounded-3xl p-8 md:p-12 text-center relative overflow-hidden backdrop-blur-2xl shadow-2xl">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-          
-          <div className="relative z-10 max-w-2xl mx-auto space-y-4">
-            <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-mono uppercase tracking-widest font-bold inline-block">
-              Pronto para Operação
+        {/* Chamada para Ação Final */}
+        <section className="theme-card rounded-3xl p-8 md:p-12 text-center bg-[var(--surface-muted)]/60">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <span className="px-3 py-1 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] text-xs font-semibold inline-block">
+              Diagnóstico Topográfico Imediato
             </span>
 
-            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-              Inicie o Monitoramento de Qualquer Encosta do Brasil
+            <h2 className="text-2xl md:text-3xl font-bold text-[var(--foreground)] tracking-tight">
+              Monitore Qualquer Talude ou Encosta por CEP
             </h2>
 
-            <p className="text-xs md:text-sm text-gray-400 leading-relaxed font-mono">
-              Consulte qualquer CEP ou coordenada geográfica para carregar o modelo digital de terreno 3D e ativar o motor preditivo de risco.
+            <p className="text-sm text-[var(--foreground-muted)] leading-relaxed">
+              Informe um CEP ou endereço para reconstruir a malha topográfica 3D, consultar a chuva acumulada na coordenada e calcular o Fator de Segurança.
             </p>
 
-            <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
+            <div className="pt-3 flex flex-wrap items-center justify-center gap-3.5">
               <Link
                 href="/gerar-terreno"
-                className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs uppercase tracking-wider shadow-xl shadow-blue-600/20 cursor-pointer active:scale-95 transition-all flex items-center gap-2"
+                className="px-7 py-3 rounded-xl theme-btn-primary font-semibold text-xs shadow-sm cursor-pointer active:scale-98 flex items-center gap-2"
               >
                 <MapPin className="w-4 h-4" />
-                Digitar CEP de Monitoramento
+                Consultar CEP Agora
               </Link>
               <Link
-                href="/dashboard"
-                className="px-8 py-3.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-mono font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
+                href="/simulacao"
+                className="px-7 py-3 rounded-xl theme-btn-secondary font-semibold text-xs cursor-pointer active:scale-98"
               >
-                Ver Dashboard em Tempo Real
+                Abrir Simulador Mohr-Coulomb
               </Link>
             </div>
           </div>
         </section>
       </main>
 
-      {/* 6. Rodapé Institucional Técnico */}
-      <footer className="w-full border-t border-white/10 bg-black/60 py-8 px-6 backdrop-blur-md mt-20">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500 font-mono">
-          <div className="flex items-center gap-2 text-gray-400">
-            <ShieldAlert className="w-4 h-4 text-blue-500" />
-            <span className="font-bold text-white">GeoShield Monitor</span>
+      {/* Rodapé Institucional */}
+      <footer className="w-full border-t border-[var(--border)] bg-[var(--surface)] py-6 px-6 mt-12">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--foreground-muted)]">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo-landslide.png" alt="LandSlide" className="w-6 h-6 object-contain logo-light" />
+            <img src="/logo-landslide-dark.png" alt="LandSlide" className="w-6 h-6 object-contain logo-dark" />
+            <span className="font-bold text-[var(--foreground)]">LandSlide Monitor</span>
             <span>•</span>
-            <span>Sistema Integrado de Defesa Civil</span>
+            <span>Engenharia Geotécnica e Monitoramento de Encostas</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px]">
-            <span>NBR 11682</span>
+          <div className="flex items-center gap-3">
+            <span>ABNT NBR 11682</span>
             <span>•</span>
             <span>CEMADEN</span>
             <span>•</span>
-            <span>CPRM</span>
-            <span>•</span>
-            <span className="text-gray-400">Engenharia e Computação</span>
+            <span>CPRM / IPT</span>
           </div>
         </div>
       </footer>

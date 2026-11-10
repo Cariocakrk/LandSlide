@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Sidebar } from '@/components/sidebar';
 import { LiveAlertLogs } from '@/components/LiveAlertLogs';
+import { TopographicBg } from '@/components/TopographicBg';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -18,8 +19,11 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'GeoShield Monitor - Deslizamentos',
-  description: 'Sistema inteligente de monitoramento preventivo de deslizamentos via IoT',
+  title: 'LandSlide | GeoShield — Monitoramento Geotécnico e Estabilidade de Encostas',
+  description: 'Plataforma de engenharia geotécnica preditiva, modelagem topográfica 3D e prevenção de deslizamentos.',
+  icons: {
+    icon: '/logo-landslide.png',
+  },
 };
 
 export default function RootLayout({
@@ -29,16 +33,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-background text-foreground font-sans antialiased flex overflow-hidden">
+      <body className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans antialiased flex overflow-hidden">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem={false}
-          disableTransitionOnChange
+          disableTransitionOnChange={false}
         >
           <Sidebar />
-          <main className="flex-1 h-screen overflow-y-auto flex flex-col relative w-full">
-            {children}
+          <main className="flex-1 h-screen overflow-y-auto flex flex-col relative w-full bg-[var(--background)] text-[var(--foreground)]">
+            <TopographicBg />
+            <div className="relative z-10 flex-1 flex flex-col w-full">
+              {children}
+            </div>
           </main>
           <LiveAlertLogs />
         </ThemeProvider>

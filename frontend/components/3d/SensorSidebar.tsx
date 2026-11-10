@@ -42,7 +42,6 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
     setMounted(true);
   }, []);
 
-  // Sincronização em tempo real de calibração de giroscópio e teste de sirene via WebSockets
   useEffect(() => {
     const handleSensorCalibrated = (data: { sensorId: string; newSlope: number }) => {
       if (data && data.sensorId) {
@@ -68,7 +67,6 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
 
   const sensor = sensors.find(s => s.id === sensorId);
 
-  // Fetch telemetry history from backend
   useEffect(() => {
     if (!sensorId) return;
 
@@ -86,7 +84,6 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
           }));
           setHistory(formatted);
         } else {
-          // If history is empty, generate realistic seed points so the user is wowed with a chart instantly
           const seedPoints: HistoricalPoint[] = [];
           const now = Date.now();
           const baseMoisture = sensor?.soilMoisture || 45;
@@ -110,44 +107,35 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
     };
 
     fetchHistory();
-    // Poll history every 5 seconds while open to update chart in real time
     const interval = setInterval(fetchHistory, 5000);
     return () => clearInterval(interval);
   }, [sensorId, sensor?.soilMoisture, sensor?.vibration, sensor?.terrainInclination]);
 
   if (!sensor) return null;
 
-  // Determine threat level color
   const getRiskDetails = (risk: number) => {
-    if (risk > 70) return { label: 'CRÍTICO', color: 'text-red-500 border-red-500/30 bg-red-500/10 shadow-red-500/20' };
-    if (risk > 40) return { label: 'ALERTA', color: 'text-orange-500 border-orange-500/30 bg-orange-500/10 shadow-orange-500/10' };
-    if (risk > 15) return { label: 'ATENÇÃO', color: 'text-yellow-500 border-yellow-500/30 bg-yellow-500/10 shadow-yellow-500/10' };
-    return { label: 'NORMAL', color: 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10 shadow-emerald-500/10' };
+    if (risk > 70) return { label: 'CRÍTICO', color: 'text-[#B91C1C] border-[#B91C1C]/30 bg-[#B91C1C]/10' };
+    if (risk > 40) return { label: 'ALERTA', color: 'text-[#C85A17] border-[#C85A17]/30 bg-[#C85A17]/10' };
+    if (risk > 15) return { label: 'ATENÇÃO', color: 'text-[#B47B1C] border-[#B47B1C]/30 bg-[#B47B1C]/10' };
+    return { label: 'ESTÁVEL', color: 'text-[#2E6F40] dark:text-[#52B788] border-[#2E6F40]/30 bg-[#2E6F40]/10' };
   };
 
   const riskDetails = getRiskDetails(sensor.localRisk);
 
-  // Calibrate Gyroscope Action
   const handleCalibrate = () => {
     if (calibrating) return;
     setCalibrating(true);
     setCalibrationSuccess(false);
 
-    // Simulate GIRO/Inclination calibration delay
     setTimeout(() => {
       updateSensor(sensor.id, { terrainInclination: 10 });
       setCalibrating(false);
       setCalibrationSuccess(true);
-
-      // Trigger WebSockets update immediately to keep other users synchronized
       socket.emit('calibrateSensor', { sensorId: sensor.id, newSlope: 10 });
-
-      // Clear success feedback after 3 seconds
       setTimeout(() => setCalibrationSuccess(false), 3000);
     }, 1500);
   };
 
-  // Sirene Test Action
   const handleSirenTest = () => {
     if (sirenActive) {
       setSirenActive(false);
@@ -155,17 +143,15 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
     }
     setSirenActive(true);
 
-    // Play visual beep
     try {
       const audio = new Audio('/alert.mp3');
       audio.volume = 0.6;
       audio.play().catch(() => {
-        // Fallback tone synthesis if alert.mp3 is missing or blocked by browser gesture
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(440, ctx.currentTime + 0.4);
         gain.gain.setValueAtTime(0.3, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
@@ -176,10 +162,8 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
       });
     } catch {}
 
-    // Emit siren test over WebSockets so backend and other operators register the siren test trigger
     socket.emit('sirenTest', { sensorId: sensor.id });
 
-    // Auto-disable siren test after 8 seconds
     setTimeout(() => {
       setSirenActive(false);
     }, 8000);
@@ -191,135 +175,128 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0.9 }}
       transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-      className="absolute top-0 right-0 h-full w-[420px] z-30 bg-[#070708cc] backdrop-blur-2xl border-l border-white/10 shadow-[-10px_0_40px_rgba(0,0,0,0.85)] flex flex-col font-sans"
+      className="absolute top-0 right-0 h-full w-[400px] z-30 bg-[var(--surface)]/95 backdrop-blur-2xl border-l border-[var(--border)] shadow-2xl flex flex-col font-sans text-[var(--foreground)]"
     >
       {/* Sidebar Header */}
-      <div className="p-6 border-b border-white/5 flex items-center justify-between">
+      <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)]">
             <Cpu className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-white tracking-wide">{sensor.id}</h2>
-              <span className="flex h-2.5 w-2.5 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
+              <h2 className="text-base font-extrabold text-[var(--foreground)]">{sensor.id}</h2>
+              <span className="w-2 h-2 rounded-full bg-[#2E6F40] dark:bg-[#52B788]" />
             </div>
-            <div className="text-[10px] text-gray-400 font-mono flex items-center gap-1 uppercase">
-              <Radio className="w-3 h-3 text-emerald-400 animate-pulse" /> Estação Geotécnica Ativa
+            <div className="text-xs text-[var(--foreground-muted)] flex items-center gap-1">
+              <Radio className="w-3 h-3 text-[var(--primary)]" /> Estação Geotécnica de Encosta
             </div>
           </div>
         </div>
         <button 
           onClick={onClose}
-          className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors active:scale-95"
+          className="w-8 h-8 rounded-lg theme-card-muted text-[var(--foreground-muted)] hover:text-[var(--foreground)] flex items-center justify-center transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
-        {/* Status Badge & Safety Factor */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
         <div className="grid grid-cols-2 gap-3">
-          <div className={`border p-4 rounded-xl flex flex-col justify-between shadow-lg ${riskDetails.color}`}>
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">Risco CPRM</span>
-            <span className="text-xl font-black mt-1">{sensor.riskLevelCode || 'R1'} • {riskDetails.label}</span>
+          <div className={`border p-3.5 rounded-xl flex flex-col justify-between ${riskDetails.color}`}>
+            <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">Classificação</span>
+            <span className="text-lg font-extrabold mt-1">{sensor.riskLevelCode || 'R1'} • {riskDetails.label}</span>
           </div>
 
-          <div className="bg-white/5 border border-white/5 p-4 rounded-xl flex flex-col justify-between text-gray-400">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-cyan-400" /> Fator de Segurança
+          <div className="theme-card-muted p-3.5 rounded-xl flex flex-col justify-between">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--foreground-muted)] flex items-center gap-1">
+              <Activity className="w-3.5 h-3.5 text-[var(--primary)]" /> Fator de Segurança
             </span>
-            <span className="text-xl font-black text-white mt-1">
+            <span className="text-lg font-extrabold font-mono text-[var(--foreground)] mt-1">
               {sensor.safetyFactor ? (sensor.safetyFactor >= 99 ? 'Estável' : `FS ${sensor.safetyFactor}`) : 'FS 1.50'}
             </span>
           </div>
         </div>
 
-        {/* Dynamic Warning Alert for Critical Risk */}
         {sensor.localRisk > 70 && (
-          <div className="border border-red-500/30 bg-red-950/20 p-4 rounded-xl flex gap-3 text-red-400 border-l-4 border-l-red-500 animate-pulse">
+          <div className="border border-[#B91C1C]/35 bg-[#B91C1C]/10 p-4 rounded-xl flex gap-3 text-[#B91C1C] dark:text-[#F87171]">
             <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider">Perigo Crítico de Ruptura</h4>
-              <p className="text-[11px] opacity-80 mt-1 leading-normal">
-                Limiar crítico de saturação superado na encosta. Fator de Segurança próximo de 1.0 (equilíbrio-limite). Alto risco de escorregamento translacional.
+              <h4 className="text-xs font-bold uppercase">Risco Crítico de Ruptura</h4>
+              <p className="text-[11px] opacity-90 mt-1 leading-normal">
+                Limiar de saturação superado na encosta. Fator de Segurança próximo de 1,00 (equilíbrio-limite).
               </p>
             </div>
           </div>
         )}
 
         {/* Telemetry Stats Grid */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/5 pb-2">Diagnóstico Geotécnico Real</h3>
+        <div className="space-y-2.5">
+          <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider border-b border-[var(--border)] pb-1.5">
+            Leituras Locais
+          </h3>
           
           <div className="grid grid-cols-2 gap-3">
-            {/* Moisture Card */}
-            <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
-              <div className="flex items-center justify-between text-cyan-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Saturação do Manto</span>
+            <div className="theme-card-muted p-3.5 rounded-xl">
+              <div className="flex items-center justify-between text-[var(--primary)] mb-1.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Saturação</span>
                 <Droplets className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white">{sensor.soilMoisture.toFixed(1)}%</div>
-              <div className="text-[10px] text-gray-500 mt-1">Poropressão Relativa</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--foreground)]">{sensor.soilMoisture.toFixed(1)}%</div>
+              <div className="text-[10px] text-[var(--foreground-muted)] mt-0.5">Poropressão ativa</div>
             </div>
 
-            {/* Inclination Card */}
-            <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
-              <div className="flex items-center justify-between text-amber-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Declividade Real</span>
+            <div className="theme-card-muted p-3.5 rounded-xl">
+              <div className="flex items-center justify-between text-[#B47B1C] mb-1.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Declividade</span>
                 <Compass className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white">{sensor.terrainInclination.toFixed(1)}°</div>
-              <div className="text-[10px] text-gray-500 mt-1">Gradiente MDE (SRTM)</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--foreground)]">{sensor.terrainInclination.toFixed(1)}°</div>
+              <div className="text-[10px] text-[var(--foreground-muted)] mt-0.5">Gradiente SRTM</div>
             </div>
 
-            {/* Rain Card */}
-            <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
-              <div className="flex items-center justify-between text-blue-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Chuva Acumulada</span>
+            <div className="theme-card-muted p-3.5 rounded-xl">
+              <div className="flex items-center justify-between text-[var(--primary)] mb-1.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Chuva 72h</span>
                 <CloudRain className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white">{sensor.rainVolume.toFixed(0)} mm</div>
-              <div className="text-[10px] text-gray-500 mt-1">Limiar CEMADEN (72h)</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--foreground)]">{sensor.rainVolume.toFixed(0)} mm</div>
+              <div className="text-[10px] text-[var(--foreground-muted)] mt-0.5">Acumulado local</div>
             </div>
 
-            {/* Altitude Card */}
-            <div className="bg-[#ffffff03] border border-white/5 p-3.5 rounded-xl hover:border-white/15 transition-all">
-              <div className="flex items-center justify-between text-emerald-400 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Cota Altimétrica</span>
+            <div className="theme-card-muted p-3.5 rounded-xl">
+              <div className="flex items-center justify-between text-[#2E6F40] dark:text-[#52B788] mb-1.5">
+                <span className="text-[11px] font-medium text-[var(--foreground-muted)]">Cota Altimétrica</span>
                 <Activity className="w-4 h-4" />
               </div>
-              <div className="text-2xl font-black text-white">{sensor.altitude ? `${Math.round(sensor.altitude)}m` : 'SRTM DEM'}</div>
-              <div className="text-[10px] text-gray-500 mt-1">Altitude Geográfica Real</div>
+              <div className="text-xl font-extrabold font-mono text-[var(--foreground)]">{sensor.altitude ? `${Math.round(sensor.altitude)}m` : 'SRTM DEM'}</div>
+              <div className="text-[10px] text-[var(--foreground-muted)] mt-0.5">Altitude real</div>
             </div>
           </div>
         </div>
 
         {/* Telemetry Charts Panel */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Gráficos de Tendência</h3>
-            <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+            <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">Histórico Recente</h3>
+            <div className="flex theme-card-muted p-0.5 rounded-lg">
               <button 
                 onClick={() => setActiveTab('moisture')}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                   activeTab === 'moisture' 
-                    ? 'bg-blue-600 text-white shadow' 
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
                 Umidade
               </button>
               <button 
                 onClick={() => setActiveTab('vibration')}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                   activeTab === 'vibration' 
-                    ? 'bg-rose-600 text-white shadow' 
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-[#B91C1C] text-white shadow-xs' 
+                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
                 Vibração
@@ -327,39 +304,39 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
             </div>
           </div>
 
-          <div className="bg-[#030303ec] border border-white/5 p-4 rounded-xl h-44 flex items-center justify-center relative">
+          <div className="theme-card-muted p-3.5 rounded-xl h-44 flex items-center justify-center relative">
             {history.length === 0 ? (
-              <div className="text-xs text-gray-600 animate-pulse">Carregando histórico do sensor...</div>
+              <div className="text-xs text-[var(--foreground-muted)]">Carregando histórico do sensor...</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={history} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorMoisture" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#A85832" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#A85832" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorVib" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#B91C1C" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#B91C1C" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                  <XAxis dataKey="time" stroke="#555" fontSize={9} />
-                  <YAxis stroke="#555" fontSize={9} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="time" stroke="var(--foreground-muted)" fontSize={9} />
+                  <YAxis stroke="var(--foreground-muted)" fontSize={9} />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#111', 
-                      borderColor: 'rgba(255,255,255,0.1)', 
-                      fontSize: 10,
-                      borderRadius: 8,
-                      fontFamily: 'monospace'
+                      backgroundColor: 'var(--surface)', 
+                      borderColor: 'var(--border)',
+                      color: 'var(--foreground)',
+                      fontSize: 11,
+                      borderRadius: 10,
                     }} 
                   />
                   {activeTab === 'moisture' ? (
                     <Area 
                       type="monotone" 
                       dataKey="moisture" 
-                      stroke="#06b6d4" 
+                      stroke="#A85832" 
                       strokeWidth={2}
                       fillOpacity={1} 
                       fill="url(#colorMoisture)" 
@@ -369,7 +346,7 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
                     <Area 
                       type="monotone" 
                       dataKey="vibration" 
-                      stroke="#f43f5e" 
+                      stroke="#B91C1C" 
                       strokeWidth={2}
                       fillOpacity={1} 
                       fill="url(#colorVib)" 
@@ -384,36 +361,37 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
 
         {/* Interactive Actuators Section */}
         {mounted && user && user.role === 'OPERATOR' ? (
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/5 pb-2">Controle Remoto de Atuadores</h3>
+          <div className="space-y-2.5">
+            <h3 className="text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider border-b border-[var(--border)] pb-1.5">
+              Comandos Remotos
+            </h3>
             
             <div className="space-y-2">
-              {/* Actuator 1: Gyroscope Calibration */}
-              <div className="bg-[#ffffff02] border border-white/5 p-4 rounded-xl flex items-center justify-between gap-4">
+              <div className="theme-card-muted p-3.5 rounded-xl flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-bold text-white flex items-center gap-1">
-                    <Compass className="w-3.5 h-3.5 text-amber-400" /> Calibrar Giroscópio
+                  <div className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                    <Compass className="w-3.5 h-3.5 text-[var(--primary)]" /> Calibrar Giroscópio
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">
-                    Zera o giroscópio do acelerômetro no local para 10° estabilizados.
+                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                    Alinha a referência do inclinômetro para 10°.
                   </p>
                 </div>
                 <button
                   disabled={calibrating}
                   onClick={handleCalibrate}
-                  className={`px-3 py-2 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
+                  className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     calibrationSuccess
-                      ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
-                      : 'bg-white/5 text-amber-400 border-amber-500/20 hover:bg-white/10 hover:border-amber-500/40'
+                      ? 'bg-[#2E6F40]/15 text-[#2E6F40] border-[#2E6F40]/30'
+                      : 'theme-btn-secondary'
                   }`}
                 >
                   {calibrating ? (
                     <>
-                      <RefreshCw className="w-3 h-3 animate-spin" /> Calibrando...
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Calibrando
                     </>
                   ) : calibrationSuccess ? (
                     <>
-                      <CheckCircle className="w-3 h-3 text-emerald-400" /> Sucesso
+                      <CheckCircle className="w-3 h-3" /> Calibrado
                     </>
                   ) : (
                     <>
@@ -423,27 +401,26 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
                 </button>
               </div>
 
-              {/* Actuator 2: Siren Horn Trigger */}
-              <div className="bg-[#ffffff02] border border-white/5 p-4 rounded-xl flex items-center justify-between gap-4">
+              <div className="theme-card-muted p-3.5 rounded-xl flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <div className="text-xs font-bold text-white flex items-center gap-1">
-                    <Volume2 className="w-3.5 h-3.5 text-blue-400" /> Corneta / Sirene
+                  <div className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-[var(--primary)]" /> Sirene de Alerta
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed">
-                    Toca a sirene de alerta sonora de alta potência acoplada ao poste do sensor.
+                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                    Aciona teste sonoro na estação de campo.
                   </p>
                 </div>
                 <button
                   onClick={handleSirenTest}
-                  className={`px-3 py-2 rounded-lg border font-mono text-[10px] font-bold uppercase transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
+                  className={`px-3 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     sirenActive
-                      ? 'bg-red-600/90 text-white border-red-500 hover:bg-red-500 animate-pulse shadow-lg shadow-red-600/20'
-                      : 'bg-white/5 text-blue-400 border-blue-500/20 hover:bg-white/10 hover:border-blue-500/40'
+                      ? 'bg-[#B91C1C] text-white border-[#B91C1C]'
+                      : 'theme-btn-secondary'
                   }`}
                 >
                   {sirenActive ? (
                     <>
-                      <Flame className="w-3 h-3 animate-bounce" /> Ativa
+                      <Flame className="w-3 h-3" /> Ativa
                     </>
                   ) : (
                     <>
@@ -455,21 +432,20 @@ export function SensorSidebar({ sensorId, onClose }: SensorSidebarProps) {
             </div>
           </div>
         ) : (
-          <div className="bg-white/[0.01] border border-white/5 p-4 rounded-xl text-center space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-amber-500/90 tracking-wider flex items-center justify-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-amber-500" /> Atuadores Bloqueados
+          <div className="theme-card-muted p-4 rounded-xl text-center space-y-1">
+            <span className="text-xs font-bold text-[var(--primary)] flex items-center justify-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> Comandos Restritos a Operadores
             </span>
-            <p className="text-[10px] text-gray-500 leading-relaxed">
-              O teste acústico de sirenes e o alinhamento remoto de inclinômetro estão disponíveis apenas para membros autorizados da Defesa Civil.
+            <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+              Faça login como engenheiro ou operador para calibrar inclinômetros e acionar sirenes.
             </p>
           </div>
         )}
       </div>
 
-      {/* Floating Siren Alert Active */}
       {sirenActive && (
-        <div className="bg-red-950/60 backdrop-blur border-t border-red-500/20 p-4 text-center text-red-400 text-xs font-mono font-bold animate-pulse tracking-wide flex items-center justify-center gap-2">
-          <Volume2 className="w-4 h-4 animate-bounce" /> SIRENE DE TESTE ATIVADA EM {sensor.id}
+        <div className="bg-[#B91C1C] p-3.5 text-center text-white text-xs font-bold flex items-center justify-center gap-2">
+          <Volume2 className="w-4 h-4" /> Sirene de teste acionada em {sensor.id}
         </div>
       )}
     </motion.div>

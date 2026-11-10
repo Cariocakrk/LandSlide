@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { ShieldAlert, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface PrecisionGaugeProps {
   value: number; // 0 - 100
@@ -20,20 +20,15 @@ export function PrecisionGauge({
 }: PrecisionGaugeProps) {
   const clampedValue = Math.max(0, Math.min(100, Math.round(value)));
 
-  // Ângulos do arco: 150° (inferior esquerdo) a 390° (inferior direito) = 240° de amplitude
   const startAngle = 150;
   const sweepAngle = 240;
   const cx = 150;
   const cy = 145;
   const r = 100;
 
-  // Ângulo do ponteiro atual
   const needleAngle = startAngle + (clampedValue / 100) * sweepAngle;
-
-  // Cálculo de coordenadas trigonométricas
   const toRad = (deg: number) => (deg * Math.PI) / 180;
 
-  // Gera path SVG para arcos
   const createArc = (a1: number, a2: number, radius: number) => {
     const startX = cx + radius * Math.cos(toRad(a1));
     const startY = cy + radius * Math.sin(toRad(a1));
@@ -43,17 +38,16 @@ export function PrecisionGauge({
     return `M ${startX.toFixed(2)} ${startY.toFixed(2)} A ${radius} ${radius} 0 ${largeArc} 1 ${endX.toFixed(2)} ${endY.toFixed(2)}`;
   };
 
-  // Cores dinâmicas
+  // Cores semânticas sóbrias de engenharia
   const gaugeColor = useMemo(() => {
     switch (statusColor) {
-      case 'Vermelho': return '#ef4444';
-      case 'Laranja': return '#f97316';
-      case 'Amarelo': return '#eab308';
-      default: return '#10b981';
+      case 'Vermelho': return '#B91C1C';
+      case 'Laranja': return '#C85A17';
+      case 'Amarelo': return '#B47B1C';
+      default: return '#2E6F40';
     }
   }, [statusColor]);
 
-  // Ticks radiais
   const ticks = useMemo(() => {
     const list = [];
     for (let p = 0; p <= 100; p += 5) {
@@ -86,7 +80,6 @@ export function PrecisionGauge({
     return list;
   }, []);
 
-  // Coordenadas do ponteiro (agulha tática aeroespacial)
   const needleTipX = cx + 82 * Math.cos(toRad(needleAngle));
   const needleTipY = cy + 82 * Math.sin(toRad(needleAngle));
 
@@ -102,18 +95,18 @@ export function PrecisionGauge({
   return (
     <div className="flex flex-col items-center justify-between w-full h-full relative font-sans select-none">
       {/* Top Header Card */}
-      <div className="w-full flex items-center justify-between border-b border-white/10 pb-3">
+      <div className="w-full flex items-center justify-between border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: gaugeColor }} />
-          <span className="text-[11px] font-mono uppercase tracking-widest text-gray-400">
-            Índice de Ameaça Geotécnica
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: gaugeColor }} />
+          <span className="text-xs font-semibold text-[var(--foreground)]">
+            Índice de Risco Geotécnico
           </span>
         </div>
         <span 
-          className="px-2.5 py-0.5 rounded text-[10px] font-mono font-black border uppercase tracking-wider"
+          className="px-2.5 py-0.5 rounded-md text-[11px] font-bold border"
           style={{ 
-            backgroundColor: `${gaugeColor}15`, 
-            borderColor: `${gaugeColor}40`,
+            backgroundColor: `${gaugeColor}14`, 
+            borderColor: `${gaugeColor}35`,
             color: gaugeColor 
           }}
         >
@@ -122,51 +115,24 @@ export function PrecisionGauge({
       </div>
 
       {/* SVG Instrument Dial */}
-      <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center my-1">
+      <div className="relative w-full max-w-[265px] aspect-square flex items-center justify-center my-1">
         <svg viewBox="0 0 300 290" className="w-full h-full overflow-visible">
-          <defs>
-            {/* Gradiente do arco de progresso */}
-            <linearGradient id="gaugeProgressGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="40%" stopColor="#eab308" />
-              <stop offset="70%" stopColor="#f97316" />
-              <stop offset="100%" stopColor="#ef4444" />
-            </linearGradient>
-
-            {/* Glow da agulha */}
-            <filter id="dialGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="glow" />
-              <feComposite in="SourceGraphic" in2="glow" operator="over" />
-            </filter>
-
-            {/* Gradiente radial para o centro anodizado */}
-            <radialGradient id="centerCapGrad" cx="40%" cy="40%" r="60%">
-              <stop offset="0%" stopColor="#334155" />
-              <stop offset="50%" stopColor="#0f172a" />
-              <stop offset="100%" stopColor="#020617" />
-            </radialGradient>
-          </defs>
-
           {/* Faixas de zonas do arco interno (CPRM) */}
-          {/* R1: 0% a 35% -> 150° a 234° */}
-          <path d={createArc(150, 234, 98)} fill="none" stroke="#10b981" strokeWidth="2.5" strokeOpacity="0.4" />
-          {/* R2: 35% a 65% -> 234° a 306° */}
-          <path d={createArc(234, 306, 98)} fill="none" stroke="#eab308" strokeWidth="2.5" strokeOpacity="0.4" />
-          {/* R3: 65% a 85% -> 306° a 354° */}
-          <path d={createArc(306, 354, 98)} fill="none" stroke="#f97316" strokeWidth="2.5" strokeOpacity="0.4" />
-          {/* R4: 85% a 100% -> 354° a 390° */}
-          <path d={createArc(354, 390, 98)} fill="none" stroke="#ef4444" strokeWidth="2.5" strokeOpacity="0.5" />
+          <path d={createArc(150, 234, 98)} fill="none" stroke="#2E6F40" strokeWidth="2.5" strokeOpacity="0.35" />
+          <path d={createArc(234, 306, 98)} fill="none" stroke="#B47B1C" strokeWidth="2.5" strokeOpacity="0.35" />
+          <path d={createArc(306, 354, 98)} fill="none" stroke="#C85A17" strokeWidth="2.5" strokeOpacity="0.35" />
+          <path d={createArc(354, 390, 98)} fill="none" stroke="#B91C1C" strokeWidth="2.5" strokeOpacity="0.4" />
 
           {/* Trilho de fundo do arco principal */}
           <path
             d={createArc(startAngle, startAngle + sweepAngle, r)}
             fill="none"
-            stroke="#1e293b"
+            stroke="var(--border)"
             strokeWidth="10"
             strokeLinecap="round"
           />
 
-          {/* Arco ativo com gradiente dinâmico */}
+          {/* Arco ativo */}
           {clampedValue > 0 && (
             <path
               d={createArc(startAngle, Math.min(startAngle + sweepAngle, needleAngle), r)}
@@ -174,7 +140,6 @@ export function PrecisionGauge({
               stroke={gaugeColor}
               strokeWidth="10"
               strokeLinecap="round"
-              filter="url(#dialGlow)"
               className="transition-all duration-700 ease-out"
             />
           )}
@@ -187,16 +152,16 @@ export function PrecisionGauge({
                 y1={t.y1}
                 x2={t.x2}
                 y2={t.y2}
-                stroke={t.isMajor ? '#94a3b8' : t.isIntermediate ? '#64748b' : '#334155'}
-                strokeWidth={t.isMajor ? 1.8 : 1}
+                stroke={t.isMajor ? 'var(--foreground-muted)' : 'var(--border-strong)'}
+                strokeWidth={t.isMajor ? 1.6 : 1}
               />
               {t.labelX !== null && t.labelY !== null && (
                 <text
                   x={t.labelX}
                   y={t.labelY + 3.5}
                   textAnchor="middle"
-                  fill="#64748b"
-                  fontSize="8.5"
+                  fill="var(--foreground-muted)"
+                  fontSize="9"
                   fontFamily="monospace"
                   fontWeight="600"
                 >
@@ -206,63 +171,63 @@ export function PrecisionGauge({
             </g>
           ))}
 
-          {/* Agulha tática de precisão */}
+          {/* Agulha de precisão */}
           <polygon
             points={`${needleTipX},${needleTipY} ${needleP1X},${needleP1Y} ${needleTailX},${needleTailY} ${needleP2X},${needleP2Y}`}
             fill={gaugeColor}
-            filter="url(#dialGlow)"
             className="transition-all duration-700 ease-out"
           />
 
-          {/* Centro anodizado maquinado do instrumento */}
-          <circle cx={cx} cy={cy} r="18" fill="url(#centerCapGrad)" stroke="#475569" strokeWidth="1.5" />
-          <circle cx={cx} cy={cy} r="10" fill="#020617" stroke="#1e293b" strokeWidth="1" />
-          <circle cx={cx} cy={cy} r="4.5" fill={gaugeColor} className="transition-colors duration-500" />
+          {/* Centro do instrumento */}
+          <circle cx={cx} cy={cy} r="15" fill="var(--surface)" stroke="var(--border-strong)" strokeWidth="2" />
+          <circle cx={cx} cy={cy} r="5.5" fill={gaugeColor} className="transition-colors duration-500" />
         </svg>
 
         {/* Leitura Digital Centralizada */}
-        <div className="absolute inset-x-0 bottom-1 flex flex-col items-center justify-center text-center">
+        <div className="absolute inset-x-0 bottom-2 flex flex-col items-center justify-center text-center">
           <div className="flex items-baseline justify-center gap-0.5">
             <span 
-              className="text-4xl md:text-5xl font-black font-mono tracking-tight"
-              style={{ color: gaugeColor, textShadow: `0 0 20px ${gaugeColor}40` }}
+              className="text-4xl font-extrabold font-mono tracking-tight"
+              style={{ color: gaugeColor }}
             >
               {clampedValue}
             </span>
-            <span className="text-base font-mono text-gray-500 font-bold">%</span>
+            <span className="text-sm font-mono text-[var(--foreground-muted)] font-semibold">%</span>
           </div>
-          <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mt-0.5">
-            Probabilidade de Ruptura
+          <span className="text-[11px] font-medium text-[var(--foreground-muted)] mt-0.5">
+            Suscetibilidade de Ruptura
           </span>
         </div>
       </div>
 
       {/* Rodapé Geotécnico com Fator de Segurança */}
-      <div className="w-full bg-black/40 border border-white/5 rounded-xl p-3 flex items-center justify-between mt-2">
+      <div className="w-full theme-card-muted rounded-xl p-3 flex items-center justify-between mt-2">
         <div className="flex flex-col">
-          <span className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Estabilidade Mohr-Coulomb</span>
+          <span className="text-[10px] font-medium text-[var(--foreground-muted)]">Estabilidade Mohr-Coulomb</span>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs font-mono font-bold text-gray-300">
+            <span className="text-xs font-mono font-bold text-[var(--foreground)]">
               {safetyFactor >= 99 ? 'Talude Plano' : `FS ${safetyFactor}`}
             </span>
-            <span className={`text-[10px] font-mono font-bold ${safetyFactor < 1.0 ? 'text-red-400' : safetyFactor < 1.3 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            <span className={`text-[11px] font-semibold ${
+              safetyFactor < 1.0 ? 'text-[#B91C1C]' : safetyFactor < 1.3 ? 'text-[#B47B1C]' : 'text-[#2E6F40] dark:text-[#52B788]'
+            }`}>
               ({safetyFactor < 1.0 ? 'Crítico' : safetyFactor < 1.3 ? 'Atenção' : 'Estável'})
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-right font-mono text-[10px] text-gray-400">
+        <div className="flex items-center gap-1 text-right text-xs font-semibold">
           {clampedValue >= 70 ? (
-            <span className="flex items-center gap-1 text-red-400 font-bold">
-              <TrendingUp className="w-3.5 h-3.5" /> Subindo
+            <span className="flex items-center gap-1 text-[#B91C1C]">
+              <TrendingUp className="w-3.5 h-3.5" /> Elevado
             </span>
           ) : clampedValue <= 30 ? (
-            <span className="flex items-center gap-1 text-emerald-400 font-bold">
+            <span className="flex items-center gap-1 text-[#2E6F40] dark:text-[#52B788]">
               <TrendingDown className="w-3.5 h-3.5" /> Seguro
             </span>
           ) : (
-            <span className="flex items-center gap-1 text-yellow-400 font-bold">
-              <Minus className="w-3.5 h-3.5" /> Monitorado
+            <span className="flex items-center gap-1 text-[#B47B1C]">
+              <Minus className="w-3.5 h-3.5" /> Moderado
             </span>
           )}
         </div>

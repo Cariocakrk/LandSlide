@@ -20,7 +20,7 @@ export const globalIncidents: IncidentReport[] = [
     protocolCode: 'DEF-WA-819204',
     phone: '+55 (24) 99812-4019',
     text: 'Apareceu uma trinca de mais de 4 metros no muro de arrimo aqui da Rua Nova. A água da chuva tá saindo barrenta por baixo do concreto!',
-    photo: 'https://images.unsplash.com/photo-1541888946425-d0fbb1861593?q=80&w=800&auto=format&fit=crop', // Imagem de fissura estrutural
+    photo: '/encosta-fissura.svg',
     location: 'Morro da Oficina, Petrópolis - RJ',
     riskLevel: 92,
     status: 'Em análise',
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       protocolCode: `DEF-WA-${Math.floor(100000 + Math.random() * 900000)}`,
       phone: body.phone || '+55 (21) 98765-4321',
       text: body.text || 'Ocorrência de instabilidade geológica reportada por cidadão via WhatsApp.',
-      photo: body.photo || null,
+      photo: body.photo || '/encosta-fissura.svg',
       location: body.location || 'Setor Encosta sob Monitoramento',
       riskLevel: typeof body.riskLevel === 'number' ? body.riskLevel : 88,
       status: 'Em análise',

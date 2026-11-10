@@ -208,36 +208,39 @@ export default function Simulacao() {
 
   if (!isOperator) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#020408] p-6 text-center select-none font-sans relative overflow-hidden h-screen w-full">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
-
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none font-sans relative overflow-hidden h-screen w-full" style={{ backgroundColor: 'var(--background)' }}>
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 max-w-md bg-slate-950/80 border border-white/10 p-8 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl flex flex-col items-center border-t-blue-500/30"
+          className="relative z-10 max-w-md theme-card p-8 rounded-2xl flex flex-col items-center"
         >
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 shadow-inner">
-            <Lock className="w-7 h-7 animate-pulse" />
+          <div className="w-14 h-14 rounded-2xl theme-card-muted flex items-center justify-center mb-4" style={{ color: 'var(--primary)' }}>
+            <Lock className="w-7 h-7" />
           </div>
-          <h2 className="text-lg font-black text-white tracking-wide uppercase">Controle Operacional Geotécnico</h2>
-          <p className="text-[10px] text-gray-400 font-mono tracking-widest mt-1 uppercase">Acesso Reservado à Defesa Civil & Avaliadores</p>
+          <h2 className="text-lg font-extrabold tracking-wide uppercase" style={{ color: 'var(--foreground)' }}>
+            Controle Operacional Geotécnico
+          </h2>
+          <p className="text-[10px] font-mono tracking-widest mt-1 uppercase" style={{ color: 'var(--foreground-muted)' }}>
+            Acesso Reservado à Engenharia &amp; Avaliadores
+          </p>
           
-          <p className="text-xs text-gray-400 leading-relaxed mt-4 mb-6">
-            O laboratório interativo permite forçar intempéries de mecânica dos solos e despachar alertas formais. Para fins de avaliação acadêmica ou demonstração técnica, utilize o botão abaixo para liberar o acesso instantâneo.
+          <p className="text-xs leading-relaxed mt-4 mb-6" style={{ color: 'var(--foreground-muted)' }}>
+            O laboratório interativo permite parametrizar cenários de mecânica dos solos e despachar alertas formais. Para fins de avaliação ou demonstração executiva, utilize o botão abaixo para liberar o acesso instantâneo.
           </p>
 
           <div className="w-full space-y-2.5">
             <button
               onClick={handleQuickDemoLogin}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/20 cursor-pointer active:scale-95 transition-all font-mono"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl theme-btn-primary font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all"
             >
               <UserCheck className="w-4 h-4" />
-              Entrar em 1 Clique (Modo Avaliador / Banca)
+              Entrar em 1 Clique (Modo Avaliador)
             </button>
 
             <button
               onClick={() => setAuthOpen(true)}
-              className="w-full py-2 text-[11px] font-mono text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="w-full py-2 text-[11px] font-medium transition-colors cursor-pointer"
+              style={{ color: 'var(--foreground-muted)' }}
             >
               Fazer login com credenciais próprias →
             </button>
@@ -257,72 +260,72 @@ export default function Simulacao() {
   const isCollapse = safetyFactor < 1.0;
 
   return (
-    <div className="p-4 md:p-8 max-w-[1440px] mx-auto w-full space-y-6 font-sans text-slate-100">
+    <div className="p-4 md:p-8 max-w-[1440px] mx-auto w-full space-y-6 font-sans" style={{ color: 'var(--foreground)' }}>
       {/* Top Banner de Protocolo */}
-      <div className="bg-slate-950/80 border border-white/10 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono backdrop-blur-xl shadow-lg border-t-orange-500/30">
+      <div className="theme-card rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-orange-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <div className="flex items-center gap-2 font-bold" style={{ color: 'var(--primary)' }}>
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--primary)' }} />
             <span>ESTÚDIO DE SIMULAÇÃO PARAMÉTRICA (WHAT-IF LAB)</span>
           </div>
-          <span className="text-gray-600">|</span>
-          <span className="text-gray-400">NORMA: <strong className="text-slate-200">ABNT NBR 11682 // TALUDE INFINITO</strong></span>
-          <span className="text-gray-600 hidden sm:inline">|</span>
-          <span className="text-gray-400 hidden sm:inline">EQUILÍBRIO LIMITE: <strong className="text-cyan-400">MOHR-COULOMB</strong></span>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <span style={{ color: 'var(--foreground-muted)' }}>NORMA: <strong style={{ color: 'var(--foreground)' }}>ABNT NBR 11682 // TALUDE INFINITO</strong></span>
+          <span className="hidden sm:inline" style={{ color: 'var(--border)' }}>|</span>
+          <span className="hidden sm:inline" style={{ color: 'var(--foreground-muted)' }}>EQUILÍBRIO LIMITE: <strong style={{ color: 'var(--primary)' }}>MOHR-COULOMB</strong></span>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px]">
-          <span className="text-gray-400">STATUS OPERACIONAL:</span>
-          <strong className="text-emerald-400 font-bold">CALIBRAÇÃO ATIVA</strong>
+        <div className="flex items-center gap-2 font-mono text-[11px]">
+          <span style={{ color: 'var(--foreground-muted)' }}>STATUS OPERACIONAL:</span>
+          <strong className="font-bold text-[#2E6F40]">CALIBRAÇÃO ATIVA</strong>
         </div>
       </div>
 
       {/* Header Principal */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-white/10">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[10px] font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5">
+            <span className="px-2.5 py-0.5 rounded-full theme-card-muted text-[10px] font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5" style={{ color: 'var(--primary)' }}>
               <ShieldAlert className="w-3.5 h-3.5" /> Laboratório Geotécnico de Ruptura
             </span>
-            <span className="text-gray-600 font-mono text-xs">•</span>
-            <span className="text-gray-400 font-mono text-[10px] uppercase tracking-wider">Mecânica dos Solos Aplicada</span>
+            <span className="font-mono text-xs" style={{ color: 'var(--border)' }}>•</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--foreground-muted)' }}>Mecânica dos Solos Aplicada</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Sliders className="w-7 h-7 text-orange-500" />
-            Parametrização Geotécnica & Previsão de Colapso
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2.5" style={{ color: 'var(--foreground)' }}>
+            <Sliders className="w-7 h-7" style={{ color: 'var(--primary)' }} />
+            Parametrização Geotécnica &amp; Previsão de Colapso
           </h1>
-          <p className="text-gray-400 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
+          <p className="text-xs md:text-sm mt-1 max-w-3xl leading-relaxed" style={{ color: 'var(--foreground-muted)' }}>
             Manipule variáveis físicas reais de encostas tropicais brasileiras. O motor calcula o <strong>Fator de Segurança (FS)</strong> e a <strong>Envoltória de Ruptura de Mohr-Coulomb</strong> instantaneamente.
           </p>
         </div>
 
         {/* Cenários Históricos de 1 Clique */}
         <div className="flex flex-wrap items-center gap-2 self-start md:self-end">
-          <span className="text-[9px] font-mono text-gray-500 uppercase block mr-1">Calibrações Rápidas:</span>
+          <span className="text-[10px] font-mono uppercase block mr-1" style={{ color: 'var(--foreground-muted)' }}>Calibrações Rápidas:</span>
           <button
             onClick={() => applyPresetScenario('petropolis_2022')}
             disabled={loading}
-            className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+            className="px-3 py-1.5 rounded-lg bg-[#B91C1C]/10 hover:bg-[#B91C1C]/20 text-[#B91C1C] border border-[#B91C1C]/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
           >
             Petrópolis 2022 (260mm)
           </button>
           <button
             onClick={() => applyPresetScenario('sao_sebastiao_2023')}
             disabled={loading}
-            className="px-2.5 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+            className="px-3 py-1.5 rounded-lg bg-[#C85A17]/10 hover:bg-[#C85A17]/20 text-[#C85A17] border border-[#C85A17]/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
           >
             São Sebastião 2023 (320mm)
           </button>
           <button
             onClick={() => applyPresetScenario('frente_fria')}
             disabled={loading}
-            className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+            className="px-3 py-1.5 rounded-lg bg-[#B47B1C]/10 hover:bg-[#B47B1C]/20 text-[#B47B1C] border border-[#B47B1C]/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
           >
             Frente Fria (95mm)
           </button>
           <button
             onClick={() => applyPresetScenario('natural')}
             disabled={loading}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+            className="px-3 py-1.5 rounded-lg bg-[#2E6F40]/10 hover:bg-[#2E6F40]/20 text-[#2E6F40] border border-[#2E6F40]/30 text-[10px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95"
           >
             Seco / Normal
           </button>
@@ -334,46 +337,47 @@ export default function Simulacao() {
         
         {/* Coluna da Esquerda: Controles Paramétricos e Sliders */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl space-y-5 border-t-white/15">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+          <div className="theme-card rounded-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-orange-400" />
-                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                <Layers className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+                <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--foreground)' }}>
                   Variáveis de Entrada do Talude
                 </h3>
               </div>
-              <span className="text-[10px] font-mono text-gray-500">ABNT NBR 11682</span>
+              <span className="text-[10px] font-mono" style={{ color: 'var(--foreground-muted)' }}>ABNT NBR 11682</span>
             </div>
 
             {/* 1. Seleção de Litologia do Solo */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-mono text-gray-300 flex items-center justify-between">
+              <label className="text-xs font-medium flex items-center justify-between" style={{ color: 'var(--foreground)' }}>
                 <span>Litologia e Mecânica do Solo:</span>
-                <span className="text-cyan-400 font-bold">{SOIL_PRESETS[lithologyKey]?.name}</span>
+                <span className="font-mono font-bold" style={{ color: 'var(--primary)' }}>{SOIL_PRESETS[lithologyKey]?.name}</span>
               </label>
               <select
                 value={lithologyKey}
                 onChange={(e) => setLithologyKey(e.target.value)}
-                className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors"
+                className="w-full theme-card-muted rounded-xl px-3 py-2.5 text-xs font-mono focus:outline-none transition-colors"
+                style={{ color: 'var(--foreground)' }}
               >
                 {Object.values(SOIL_PRESETS).map((soil) => (
-                  <option key={soil.id} value={soil.id} className="bg-slate-950 text-white">
+                  <option key={soil.id} value={soil.id} style={{ backgroundColor: 'var(--surface)', color: 'var(--foreground)' }}>
                     {soil.name} (φ&#39;={soil.phiDeg}°, c&#39;={soil.cohesionKPa}kPa)
                   </option>
                 ))}
               </select>
-              <p className="text-[10px] text-gray-500 leading-tight">
+              <p className="text-[11px] leading-tight" style={{ color: 'var(--foreground-muted)' }}>
                 {SOIL_PRESETS[lithologyKey]?.description}
               </p>
             </div>
 
             {/* 2. Slider de Chuva Acumulada 72h */}
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-gray-300 flex items-center gap-1.5">
-                  <CloudRain className="w-3.5 h-3.5 text-blue-400" /> Chuva Acumulada (72h):
+            <div className="space-y-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                  <CloudRain className="w-4 h-4" style={{ color: 'var(--primary)' }} /> Chuva Acumulada (72h):
                 </span>
-                <strong className="text-blue-400 text-sm">{accumulatedRain72h} mm</strong>
+                <strong className="font-mono text-sm" style={{ color: 'var(--primary)' }}>{accumulatedRain72h} mm</strong>
               </div>
               <input
                 type="range"
@@ -382,22 +386,23 @@ export default function Simulacao() {
                 step="5"
                 value={accumulatedRain72h}
                 onChange={(e) => setAccumulatedRain72h(Number(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                style={{ backgroundColor: 'var(--border)', accentColor: 'var(--primary)' }}
               />
-              <div className="flex justify-between text-[9px] font-mono text-gray-500">
+              <div className="flex justify-between text-[10px] font-mono" style={{ color: 'var(--foreground-muted)' }}>
                 <span>0 mm (Seco)</span>
-                <span className="text-amber-500">100 mm (Gatilho CEMADEN)</span>
-                <span className="text-red-500">400 mm (Catástrofe)</span>
+                <span className="text-[#B47B1C]">100 mm (Gatilho CEMADEN)</span>
+                <span className="text-[#B91C1C]">400 mm (Catástrofe)</span>
               </div>
             </div>
 
             {/* 3. Slider de Declividade da Encosta */}
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-gray-300 flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-yellow-400" /> Declividade da Encosta (β):
+            <div className="space-y-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                  <Compass className="w-4 h-4 text-[#B47B1C]" /> Declividade da Encosta (β):
                 </span>
-                <strong className="text-yellow-400 text-sm">{slopeDeg}°</strong>
+                <strong className="font-mono text-sm text-[#B47B1C]">{slopeDeg}°</strong>
               </div>
               <input
                 type="range"
@@ -406,22 +411,23 @@ export default function Simulacao() {
                 step="1"
                 value={slopeDeg}
                 onChange={(e) => setSlopeDeg(Number(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                style={{ backgroundColor: 'var(--border)', accentColor: '#B47B1C' }}
               />
-              <div className="flex justify-between text-[9px] font-mono text-gray-500">
+              <div className="flex justify-between text-[10px] font-mono" style={{ color: 'var(--foreground-muted)' }}>
                 <span>0° (Platô)</span>
                 <span>25° (Atenção)</span>
-                <span className="text-red-500">&gt; 35° (Risco Crítico)</span>
+                <span className="text-[#B91C1C]">&gt; 35° (Risco Crítico)</span>
               </div>
             </div>
 
             {/* 4. Slider de Nível do Freático / Saturação */}
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-gray-300 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-cyan-400" /> Razão de Saturação (m = hw/z):
+            <div className="space-y-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                  <Activity className="w-4 h-4 text-[#2E6F40]" /> Razão de Saturação (m = hw/z):
                 </span>
-                <strong className="text-cyan-400 text-sm">{Math.round(saturationRatio * 100)}%</strong>
+                <strong className="font-mono text-sm text-[#2E6F40]">{Math.round(saturationRatio * 100)}%</strong>
               </div>
               <input
                 type="range"
@@ -430,22 +436,23 @@ export default function Simulacao() {
                 step="5"
                 value={Math.round(saturationRatio * 100)}
                 onChange={(e) => setSaturationRatio(Number(e.target.value) / 100)}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                style={{ backgroundColor: 'var(--border)', accentColor: '#2E6F40' }}
               />
-              <div className="flex justify-between text-[9px] font-mono text-gray-500">
+              <div className="flex justify-between text-[10px] font-mono" style={{ color: 'var(--foreground-muted)' }}>
                 <span>0% (Freático Profundo)</span>
                 <span>50% (Manto Semi-saturado)</span>
-                <span className="text-red-500">100% (Afloramento)</span>
+                <span className="text-[#B91C1C]">100% (Afloramento)</span>
               </div>
             </div>
 
             {/* 5. Slider de Profundidade da Ruptura */}
-            <div className="space-y-2 pt-2 border-t border-white/5">
-              <div className="flex justify-between items-center text-xs font-mono">
-                <span className="text-gray-300 flex items-center gap-1.5">
-                  <Mountain className="w-3.5 h-3.5 text-purple-400" /> Profundidade da Ruptura (z):
+            <div className="space-y-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                  <Mountain className="w-4 h-4" style={{ color: 'var(--primary)' }} /> Profundidade da Ruptura (z):
                 </span>
-                <strong className="text-purple-400 text-sm">{soilDepthM.toFixed(1)} m</strong>
+                <strong className="font-mono text-sm" style={{ color: 'var(--primary)' }}>{soilDepthM.toFixed(1)} m</strong>
               </div>
               <input
                 type="range"
@@ -454,9 +461,10 @@ export default function Simulacao() {
                 step="0.1"
                 value={soilDepthM}
                 onChange={(e) => setSoilDepthM(Number(e.target.value))}
-                className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                style={{ backgroundColor: 'var(--border)', accentColor: 'var(--primary)' }}
               />
-              <div className="flex justify-between text-[9px] font-mono text-gray-500">
+              <div className="flex justify-between text-[10px] font-mono" style={{ color: 'var(--foreground-muted)' }}>
                 <span>1.0 m (Raso)</span>
                 <span>2.5 m (Médio)</span>
                 <span>5.0 m (Profundo)</span>
@@ -464,17 +472,17 @@ export default function Simulacao() {
             </div>
 
             {/* Botão de Sincronização com o Modelo 3D */}
-            <div className="pt-2 border-t border-white/5">
+            <div className="pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
               <button
                 onClick={handleInjectTo3D}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-mono font-bold text-xs uppercase tracking-wider shadow-lg shadow-blue-600/20 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl theme-btn-primary font-bold text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <Send className="w-3.5 h-3.5" />
-                Injetar no Gêmeo Digital 3D (Zustand)
+                Injetar no Gêmeo Digital 3D
               </button>
               {injectedSuccess && (
-                <p className="text-[10px] font-mono text-emerald-400 text-center mt-2 flex items-center justify-center gap-1 animate-in fade-in">
-                  <CheckCircle2 className="w-3 h-3" /> Condições aplicadas com sucesso à maquete 3D e sensores!
+                <p className="text-[11px] font-mono text-[#2E6F40] text-center mt-2 flex items-center justify-center gap-1 animate-in fade-in">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Condições aplicadas com sucesso à maquete 3D e sensores!
                 </p>
               )}
             </div>
@@ -485,10 +493,10 @@ export default function Simulacao() {
         <div className="lg:col-span-7 space-y-5">
           
           {/* Card de Fator de Segurança & Classificação CPRM */}
-          <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-5 border-t-white/15">
+          <div className="theme-card rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-5">
             <div className="flex items-center gap-4">
               <div 
-                className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center border shadow-xl"
+                className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center border shadow-sm"
                 style={{
                   backgroundColor: `${cprmClassification.color}15`,
                   borderColor: `${cprmClassification.color}40`,
@@ -501,30 +509,30 @@ export default function Simulacao() {
 
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono uppercase tracking-widest text-gray-400">Classificação Oficial</span>
-                  <span className="text-gray-600">•</span>
+                  <span className="text-xs font-mono uppercase tracking-widest" style={{ color: 'var(--foreground-muted)' }}>Classificação Oficial</span>
+                  <span style={{ color: 'var(--border)' }}>•</span>
                   <span className="text-xs font-mono font-bold" style={{ color: cprmClassification.color }}>
                     {cprmClassification.name}
                   </span>
                 </div>
-                <div className="text-3xl font-black font-mono text-white tracking-tight mt-0.5 flex items-baseline gap-2">
+                <div className="text-3xl font-black font-mono tracking-tight mt-0.5 flex items-baseline gap-2" style={{ color: 'var(--foreground)' }}>
                   FS = {safetyFactor >= 99 ? 'Estável (Platô)' : safetyFactor.toFixed(2)}
-                  <span className="text-xs font-mono font-normal text-gray-500">
+                  <span className="text-xs font-mono font-normal" style={{ color: 'var(--foreground-muted)' }}>
                     {safetyFactor >= 1.5 ? '(Em conformidade com NBR 11682)' : '(Subcrítico / Instável)'}
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1 max-w-md">
+                <p className="text-xs mt-1 max-w-md" style={{ color: 'var(--foreground-muted)' }}>
                   {cprmClassification.description}
                 </p>
               </div>
             </div>
 
-            <div className="w-full sm:w-auto text-right font-mono bg-black/40 border border-white/5 p-3 rounded-xl min-w-[140px]">
-              <span className="text-[9px] text-gray-500 uppercase block">Probabilidade Ruptura</span>
+            <div className="w-full sm:w-auto text-right font-mono theme-card-muted p-3.5 rounded-xl min-w-[140px]">
+              <span className="text-[9px] uppercase block" style={{ color: 'var(--foreground-muted)' }}>Probabilidade Ruptura</span>
               <span className="text-2xl font-black font-mono" style={{ color: cprmClassification.color }}>
                 {geotechnicalCalculation.ruptureRiskPercent}%
               </span>
-              <span className="text-[9px] text-gray-500 block mt-0.5">Mecanismo Translacional</span>
+              <span className="text-[9px] block mt-0.5" style={{ color: 'var(--foreground-muted)' }}>Mecanismo Translacional</span>
             </div>
           </div>
 
@@ -532,55 +540,55 @@ export default function Simulacao() {
           <MohrCoulombChart calculation={geotechnicalCalculation} />
 
           {/* Memória de Cálculo Auditável da NBR 11682 */}
-          <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+          <div className="theme-card rounded-2xl p-5 space-y-3">
+            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-cyan-400" />
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                <BookOpen className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+                <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--foreground)' }}>
                   Memória de Cálculo da Estabilidade de Taludes (ABNT NBR 11682)
                 </h4>
               </div>
-              <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-white/5 text-gray-400">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded theme-card-muted" style={{ color: 'var(--foreground-muted)' }}>
                 AUDITÁVEL
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">
-              <div className="bg-black/40 border border-white/5 rounded-xl p-3 space-y-1">
-                <span className="text-[9px] text-gray-500 uppercase block">1. Tensão Normal Total (σ_n):</span>
-                <div className="text-gray-300">
-                  σ_n = γ_sat · z · cos²(β) = <strong className="text-white">{sigmaNormalTotal} kPa</strong>
+              <div className="theme-card-muted rounded-xl p-3.5 space-y-1">
+                <span className="text-[9px] uppercase block" style={{ color: 'var(--foreground-muted)' }}>1. Tensão Normal Total (σ_n):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  σ_n = γ_sat · z · cos²(β) = <strong style={{ color: 'var(--foreground)' }}>{sigmaNormalTotal} kPa</strong>
                 </div>
-                <span className="text-[9px] text-gray-500 uppercase block pt-1">2. Poro-pressão de Água (u):</span>
-                <div className="text-gray-300">
-                  u = m · γ_w · z · cos²(β) = <strong className="text-cyan-400">{poreWaterPressure} kPa</strong>
+                <span className="text-[9px] uppercase block pt-1" style={{ color: 'var(--foreground-muted)' }}>2. Poro-pressão de Água (u):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  u = m · γ_w · z · cos²(β) = <strong style={{ color: 'var(--primary)' }}>{poreWaterPressure} kPa</strong>
                 </div>
-                <span className="text-[9px] text-gray-500 uppercase block pt-1">3. Tensão Normal Efetiva (σ&#39;):</span>
-                <div className="text-gray-300">
-                  σ&#39; = σ_n - u = <strong className="text-emerald-400">{sigmaEffective} kPa</strong>
+                <span className="text-[9px] uppercase block pt-1" style={{ color: 'var(--foreground-muted)' }}>3. Tensão Normal Efetiva (σ&#39;):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  σ&#39; = σ_n - u = <strong className="text-[#2E6F40]">{sigmaEffective} kPa</strong>
                 </div>
               </div>
 
-              <div className="bg-black/40 border border-white/5 rounded-xl p-3 space-y-1">
-                <span className="text-[9px] text-gray-500 uppercase block">4. Tensão Cisalhante Atuante (τ_d):</span>
-                <div className="text-gray-300">
-                  τ_d = γ_sat · z · sin(β) · cos(β) = <strong className={isCollapse ? "text-red-400" : "text-white"}>{drivingShearStress} kPa</strong>
+              <div className="theme-card-muted rounded-xl p-3.5 space-y-1">
+                <span className="text-[9px] uppercase block" style={{ color: 'var(--foreground-muted)' }}>4. Tensão Cisalhante Atuante (τ_d):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  τ_d = γ_sat · z · sin(β) · cos(β) = <strong style={{ color: isCollapse ? '#B91C1C' : 'var(--foreground)' }}>{drivingShearStress} kPa</strong>
                 </div>
-                <span className="text-[9px] text-gray-500 uppercase block pt-1">5. Resistência Cisalhante Disponível (τ_r):</span>
-                <div className="text-gray-300">
-                  τ_r = c&#39; + σ&#39; · tan(φ&#39;) = <strong className="text-white">{resistingShearStress} kPa</strong>
+                <span className="text-[9px] uppercase block pt-1" style={{ color: 'var(--foreground-muted)' }}>5. Resistência Cisalhante Disponível (τ_r):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  τ_r = c&#39; + σ&#39; · tan(φ&#39;) = <strong style={{ color: 'var(--foreground)' }}>{resistingShearStress} kPa</strong>
                 </div>
-                <span className="text-[9px] text-gray-500 uppercase block pt-1">6. Fator de Segurança (FS):</span>
-                <div className="text-gray-300">
-                  FS = τ_r / τ_d = <strong className={isCollapse ? "text-red-400" : "text-emerald-400"}>{safetyFactor >= 99 ? 'Estável' : safetyFactor.toFixed(2)}</strong>
+                <span className="text-[9px] uppercase block pt-1" style={{ color: 'var(--foreground-muted)' }}>6. Fator de Segurança (FS):</span>
+                <div style={{ color: 'var(--foreground-muted)' }}>
+                  FS = τ_r / τ_d = <strong style={{ color: isCollapse ? '#B91C1C' : '#2E6F40' }}>{safetyFactor >= 99 ? 'Estável' : safetyFactor.toFixed(2)}</strong>
                 </div>
               </div>
             </div>
 
             {isCollapse && (
-              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 flex items-center justify-between gap-3 text-xs font-mono text-red-200">
+              <div className="p-3.5 rounded-xl bg-[#B91C1C]/10 border border-[#B91C1C]/30 flex items-center justify-between gap-3 text-xs font-mono text-[#B91C1C]">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-red-400 animate-bounce flex-shrink-0" />
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                   <span>
                     <strong>ALERTA DE COLAPSO ESTRUTURAL (FS &lt; 1.00):</strong> As tensões cisalhantes superam a resistência de atrito e coesão. Ruptura iminente de massa.
                   </span>
@@ -598,22 +606,22 @@ export default function Simulacao() {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed bottom-10 right-10 bg-red-950/90 backdrop-blur-xl border border-red-500/50 p-6 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.3)] z-50 max-w-sm font-sans"
+            className="fixed bottom-10 right-10 theme-card border-2 border-[#B91C1C] p-6 rounded-2xl shadow-2xl z-50 max-w-sm font-sans"
           >
-            <div className="flex items-center gap-3 text-red-500 font-bold text-lg mb-2">
-              <AlertTriangle className="w-6 h-6 animate-ping" />
+            <div className="flex items-center gap-3 text-[#B91C1C] font-bold text-lg mb-2">
+              <AlertTriangle className="w-6 h-6 animate-bounce" />
               ALERTA DE EVACUAÇÃO
             </div>
-            <p className="text-red-100 text-sm mb-4">
+            <p className="text-sm mb-4" style={{ color: 'var(--foreground)' }}>
               O modelo identificou colapso geotécnico iminente no setor monitorado.
             </p>
-            <div className="bg-black/50 p-3 rounded-lg mb-4 text-xs font-mono text-red-200 border border-red-900/50">
+            <div className="theme-card-muted p-3 rounded-lg mb-4 text-xs font-mono" style={{ color: 'var(--foreground)' }}>
               Protocolo: <strong>{activeAlert.protocolCode}</strong><br/>
               Severidade: CPRM R4 (Muito Alto)
             </div>
             <button 
               onClick={sendToCivilDefense}
-              className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(220,38,38,0.5)] active:scale-95 text-xs uppercase tracking-wider font-mono cursor-pointer"
+              className="w-full bg-[#B91C1C] hover:bg-[#991B1B] text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 text-xs uppercase tracking-wider font-mono cursor-pointer"
             >
               <ShieldAlert className="w-4 h-4" />
               Despachar Viaturas da Defesa Civil

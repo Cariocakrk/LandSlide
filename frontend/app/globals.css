@@ -1,8 +1,57 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #000000; /* OLED Pitch Black para máximo conforto visual e economia de energia */
-  --foreground: #e2e8f0; /* Cinza ardósia suave (menos agressivo aos olhos do que o branco puro) */
+  --background: #F8F5F0;
+  --surface: #FFFFFF;
+  --surface-muted: #F1ECE4;
+  --surface-elevated: #FAF7F2;
+  --foreground: #2B1810;
+  --foreground-muted: #6E5A4F;
+  --border: #E2D9CC;
+  --border-strong: #CFC2B0;
+  --primary: #A85832;
+  --primary-hover: #8C4625;
+  --primary-soft: rgba(168, 88, 50, 0.10);
+  --espresso: #2B1810;
+  --canvas-3d: #EFECE6;
+  --mountain-1: rgba(196, 148, 114, 0.38);
+  --mountain-2: rgba(168, 88, 50, 0.30);
+  --mountain-3: rgba(110, 58, 32, 0.26);
+  --mountain-stroke: rgba(168, 88, 50, 0.65);
+}
+
+.dark {
+  --background: #14100E;
+  --surface: #1E1815;
+  --surface-muted: #27201C;
+  --surface-elevated: #2E2520;
+  --foreground: #F5EFE6;
+  --foreground-muted: #B8A79A;
+  --border: #352B25;
+  --border-strong: #4A3C33;
+  --primary: #C87A51;
+  --primary-hover: #D88B62;
+  --primary-soft: rgba(200, 122, 81, 0.14);
+  --espresso: #F5EFE6;
+  --canvas-3d: #181310;
+  --mountain-1: rgba(168, 88, 50, 0.22);
+  --mountain-2: rgba(200, 122, 81, 0.30);
+  --mountain-3: rgba(120, 60, 32, 0.42);
+  --mountain-stroke: rgba(216, 139, 98, 0.75);
+}
+
+.logo-light {
+  display: block;
+}
+.logo-dark {
+  display: none;
+}
+.dark .logo-light {
+  display: none;
+}
+.dark .logo-dark {
+  display: block;
 }
 
 @theme inline {
@@ -22,37 +71,78 @@ body {
   font-family: var(--font-sans);
   background: var(--background) !important;
   color: var(--foreground) !important;
-  -webkit-font-smoothing: antialiased !important;
-  -moz-osx-font-smoothing: grayscale !important;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Customização de Scrollbars Premium para o Console */
+/* Scrollbar elegante em tons terrosos */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: var(--background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-strong);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6/50;
+  background: var(--primary);
 }
 
-/* Estilização suave para seleções de texto */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: #ffffff;
+  background: rgba(168, 88, 50, 0.22);
+  color: var(--foreground);
 }
 
-/* Correções globais para inputs e selects noturnos nos navegadores */
-input, select, textarea {
-  color-scheme: dark;
+/* Utilitários de superfície do tema */
+.theme-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  box-shadow: 0 2px 10px -2px rgba(43, 24, 16, 0.05);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.dark .theme-card {
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.45);
+}
+
+.theme-card-muted {
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.theme-text-muted {
+  color: var(--foreground-muted);
+}
+
+.theme-border {
+  border-color: var(--border);
+}
+
+.theme-btn-primary {
+  background-color: var(--primary);
+  color: #FFFFFF;
+  transition: all 0.2s ease;
+}
+
+.theme-btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.theme-btn-secondary {
+  background-color: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  transition: all 0.2s ease;
+}
+
+.theme-btn-secondary:hover {
+  background-color: var(--surface-muted);
+  border-color: var(--primary);
+}

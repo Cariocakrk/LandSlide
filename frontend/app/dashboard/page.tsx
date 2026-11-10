@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { 
   Activity, Droplets, Mountain, CloudRain, AlertTriangle, Compass, 
-  ShieldAlert, CheckCircle2, Radio, Server, FileText, Zap, Layers, AlertOctagon
+  CheckCircle2, FileText, AlertOctagon, ShieldCheck
 } from 'lucide-react';
 import { useTerrainStore } from '@/store/terrainStore';
 import { PrecisionGauge } from '@/components/dashboard/PrecisionGauge';
@@ -44,7 +44,6 @@ export default function Dashboard() {
     diagnosis,
     sensorsEnabled,
     rainVolume,
-    accumulatedRain24h,
     forecastRain24h,
     soilSaturationPercent,
     slopeData
@@ -89,7 +88,6 @@ export default function Dashboard() {
     ? Math.round(sensors.reduce((acc, s) => acc + (s.futureRisk || 0), 0) / sensors.length)
     : Math.min(100, Math.round(displayRisk * 1.15 + (forecastRain24h > 20 ? 15 : 0)));
 
-  // Mock histórico inicial quando ainda não há streams do socket para os gráficos nunca ficarem vazios
   const chartData = useMemo(() => {
     if (data.length >= 3) return data;
     const mockHistory: SensorData[] = [];
@@ -112,74 +110,49 @@ export default function Dashboard() {
   }, [data, displayMoisture, displayRain72h, displayInclination, displayVibration, displayFS, displayRisk, displayStatusColor]);
 
   return (
-    <div className="p-4 md:p-8 max-w-[1440px] mx-auto w-full space-y-6 animate-in fade-in duration-700 font-sans text-slate-100">
-      {/* 1. Ticker Superior de Telemetria CICC (Mission Status Bar) */}
-      <div className="bg-slate-950/80 border border-white/10 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-[10px] font-mono backdrop-blur-xl shadow-lg border-t-blue-500/30">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>SISTEMA CICC OPERACIONAL</span>
-          </div>
-          <span className="text-gray-600">|</span>
-          <span className="text-gray-400">
-            MOTOR: <strong className="text-slate-200">MOHR-COULOMB // TALUDE INFINITO</strong>
-          </span>
-          <span className="text-gray-600 hidden sm:inline">|</span>
-          <span className="text-gray-400 hidden sm:inline">
-            BASE DADOS: <strong className="text-cyan-400">CEMADEN & SRTM 30M</strong>
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 font-mono text-[10px] text-gray-400">
-          <span>PROTOCOLO: <strong className="text-white">NUP-CPRM-2026</strong></span>
-          <span className="text-gray-600">|</span>
-          <span className="text-emerald-400 flex items-center gap-1 font-bold">
-            <Radio className="w-3 h-3 animate-spin" /> TELEMETRIA ATIVA
-          </span>
-        </div>
-      </div>
-
-      {/* 2. Cabeçalho Oficial do Centro de Comando */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-white/10">
+    <div className="p-5 md:p-8 max-w-[1400px] mx-auto w-full space-y-6 font-sans text-[var(--foreground)]">
+      {/* Cabeçalho do Painel */}
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[var(--border)]">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-mono uppercase tracking-widest font-semibold flex items-center gap-1.5">
-              <ShieldAlert className="w-3 h-3" /> Sistema de Proteção e Defesa Civil
+            <span className="px-2.5 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] text-xs font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" /> Monitoramento Geotécnico em Tempo Real
             </span>
-            <span className="text-gray-600 font-mono text-xs">•</span>
-            <span className="text-gray-400 font-mono text-[10px] uppercase tracking-wider">
-              Terminal de Alerta Precoce
+            <span className="text-[var(--border-strong)]">•</span>
+            <span className="text-[var(--foreground-muted)] text-xs">
+              ABNT NBR 11682
             </span>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Activity className="w-7 h-7 text-blue-500" />
-            Centro de Comando Geotécnico e Risco
+          <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--foreground)] tracking-tight flex items-center gap-2.5">
+            Painel de Controle Geotécnico
           </h1>
 
-          <p className="text-gray-400 text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
+          <p className="text-[var(--foreground-muted)] text-xs md:text-sm mt-1 max-w-3xl leading-relaxed">
             {location 
-              ? `Monitoramento em tempo real do setor: ${location} • Modelo Digital de Elevação SRTM 30m calibrado com sensores piezoelétricos.`
-              : "Monitoramento de estabilidade de encostas e saturação do manto geológico sob diretrizes da CPRM e CEMADEN."}
+              ? `Setor monitorado: ${location} • Modelo Digital de Elevação SRTM 30m e telemetria pluviométrica.`
+              : "Acompanhamento de estabilidade de encostas, saturação do solo e volume de chuvas acumuladas."}
           </p>
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-end">
-          <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2.5 backdrop-blur-md">
-            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+          <div className="theme-card px-4 py-2.5 rounded-xl flex items-center gap-2.5">
+            <div className={`w-2.5 h-2.5 rounded-full ${
+              displayRiskCode === 'R4' ? 'bg-[#B91C1C]' :
+              displayRiskCode === 'R3' ? 'bg-[#C85A17]' :
+              displayRiskCode === 'R2' ? 'bg-[#B47B1C]' : 'bg-[#2E6F40]'
+            }`} />
             <div>
-              <span className="text-[9px] font-mono text-gray-500 uppercase block leading-none">Classificação CPRM</span>
-              <strong className="text-sm font-mono text-white leading-tight">{displayRiskCode} - {riskClassification}</strong>
+              <span className="text-[10px] text-[var(--foreground-muted)] uppercase font-medium block leading-none">Classificação CPRM</span>
+              <strong className="text-sm font-bold text-[var(--foreground)] leading-tight">{displayRiskCode} — {riskClassification}</strong>
             </div>
           </div>
         </div>
       </header>
 
-      {/* 3. Bloco Principal: Gauge de Cockpit + Grid de Métricas Industriais */}
+      {/* Bloco Principal: Indicador de Risco + 6 Cards de Métricas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Instrumento Circular de Cockpit (PrecisionGauge) */}
-        <div className="lg:col-span-1 border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-all border-t-white/15">
-          <div className="absolute -right-20 -top-20 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="lg:col-span-1 theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
           <PrecisionGauge
             value={displayRisk}
             riskLevelCode={displayRiskCode}
@@ -189,17 +162,16 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Grid de Métricas Industriais (6 Cards) */}
         <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
           <MetricCard
             title="Fator de Segurança (FS)"
             value={displayFS >= 99 ? 'Estável' : displayFS}
             unit={displayFS >= 99 ? 'Talude Plano' : 'Mohr-Coulomb'}
             icon={Mountain}
-            color={displayFS < 1.0 ? "text-red-400" : displayFS < 1.3 ? "text-orange-400" : "text-emerald-400"}
-            tag="TALUDE"
+            color={displayFS < 1.0 ? "text-[#B91C1C]" : displayFS < 1.3 ? "text-[#C85A17]" : "text-[#2E6F40] dark:text-[#52B788]"}
+            tag="ESTABILIDADE"
             capacityPercent={displayFS >= 99 ? 100 : Math.min(100, Math.round((displayFS / 2.0) * 100))}
-            barColor={displayFS < 1.0 ? "bg-red-500" : displayFS < 1.3 ? "bg-orange-500" : "bg-emerald-500"}
+            barColor={displayFS < 1.0 ? "bg-[#B91C1C]" : displayFS < 1.3 ? "bg-[#C85A17]" : "bg-[#2E6F40]"}
           />
 
           <MetricCard
@@ -207,21 +179,21 @@ export default function Dashboard() {
             value={displayRain72h}
             unit="mm (CEMADEN)"
             icon={CloudRain}
-            color={displayRain72h >= 100 ? "text-red-400" : displayRain72h >= 60 ? "text-orange-400" : "text-blue-400"}
+            color={displayRain72h >= 100 ? "text-[#B91C1C]" : displayRain72h >= 60 ? "text-[#C85A17]" : "text-[var(--primary)]"}
             tag="PLUVIÔMETRO"
             capacityPercent={Math.min(100, Math.round((displayRain72h / 120) * 100))}
-            barColor={displayRain72h >= 100 ? "bg-red-500" : displayRain72h >= 60 ? "bg-orange-500" : "bg-blue-500"}
+            barColor={displayRain72h >= 100 ? "bg-[#B91C1C]" : displayRain72h >= 60 ? "bg-[#C85A17]" : "bg-[var(--primary)]"}
           />
 
           <MetricCard
-            title="Saturação do Manto"
+            title="Saturação do Solo"
             value={displayMoisture}
             unit="% capacidade"
             icon={Droplets}
-            color="text-cyan-400"
-            tag="HIGRÔMETRO"
+            color="text-[var(--primary)]"
+            tag="UMIDADE"
             capacityPercent={displayMoisture}
-            barColor="bg-cyan-500"
+            barColor="bg-[var(--primary)]"
           />
 
           <MetricCard
@@ -229,10 +201,10 @@ export default function Dashboard() {
             value={displayInclination}
             unit={`° (Máx ${displayMaxSlope}°)`}
             icon={Compass}
-            color={displayInclination >= 25 ? "text-orange-400" : "text-yellow-400"}
+            color={displayInclination >= 25 ? "text-[#C85A17]" : "text-[#B47B1C]"}
             tag="TOPOGRAFIA"
             capacityPercent={Math.min(100, Math.round((displayInclination / 45) * 100))}
-            barColor={displayInclination >= 25 ? "bg-orange-500" : "bg-yellow-500"}
+            barColor={displayInclination >= 25 ? "bg-[#C85A17]" : "bg-[#B47B1C]"}
           />
 
           <MetricCard
@@ -240,48 +212,48 @@ export default function Dashboard() {
             value={forecastRain24h}
             unit="mm esperados"
             icon={CloudRain}
-            color="text-purple-400"
-            tag="RADAR METEO"
+            color="text-[var(--primary)]"
+            tag="METEOROLOGIA"
             capacityPercent={Math.min(100, Math.round((forecastRain24h / 60) * 100))}
-            barColor="bg-purple-500"
+            barColor="bg-[var(--primary)]"
           />
 
           <MetricCard
-            title="Alerta CEMADEN"
+            title="Limiar CEMADEN"
             value={(cemadenThreshold || 'Normal').split(' ')[0]}
-            unit="limiar crítico"
+            unit="status atual"
             icon={AlertTriangle}
-            color="text-amber-400"
+            color="text-[#B47B1C]"
             tag="PROTOCOLO"
             capacityPercent={displayRain72h >= 100 ? 100 : displayRain72h >= 60 ? 65 : 25}
-            barColor={displayRain72h >= 100 ? "bg-red-500" : displayRain72h >= 60 ? "bg-amber-500" : "bg-emerald-500"}
+            barColor={displayRain72h >= 100 ? "bg-[#B91C1C]" : displayRain72h >= 60 ? "bg-[#B47B1C]" : "bg-[#2E6F40]"}
           />
         </div>
       </div>
 
-      {/* 4. Gráficos Técnicos Avançados (Hietograma CEMADEN & Estabilidade Estrutural) */}
+      {/* Gráficos Técnicos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico 1: Hietograma CEMADEN com Linha de Limiar Crítico de 100mm */}
-        <div className="border border-white/10 rounded-2xl bg-slate-950/70 backdrop-blur-xl p-5 shadow-2xl flex flex-col justify-between group hover:border-cyan-500/30 transition-colors">
-          <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+        {/* Gráfico 1: Hietograma */}
+        <div className="theme-card rounded-2xl p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+              <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                 <Droplets className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Hietograma de Precipitação & Saturação</h3>
-                <span className="text-[10px] font-mono text-gray-400 uppercase">
-                  Curva de Acúmulo Hidrológico vs Capacidade de Campo
+                <h3 className="font-bold text-[var(--foreground)] text-sm">Precipitação & Saturação do Solo</h3>
+                <span className="text-[11px] text-[var(--foreground-muted)]">
+                  Acúmulo hidrológico vs. capacidade de infiltração
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-[10px] font-mono">
-              <span className="flex items-center gap-1 text-cyan-400">
-                <span className="w-2 h-2 rounded-full bg-cyan-400" /> Saturação (%)
+            <div className="flex items-center gap-3 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-[var(--primary)]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]" /> Saturação (%)
               </span>
-              <span className="flex items-center gap-1 text-purple-400">
-                <span className="w-2 h-2 rounded-full bg-purple-400" /> Chuva 72h (mm)
+              <span className="flex items-center gap-1.5 text-[#5C3D2E] dark:text-[#E6CCB2]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#5C3D2E] dark:bg-[#E6CCB2]" /> Chuva 72h (mm)
               </span>
             </div>
           </div>
@@ -292,36 +264,30 @@ export default function Dashboard() {
                 <AreaChart data={chartData} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="satGlow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0}/>
-                    </linearGradient>
-                    <linearGradient id="rainGlow" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#c084fc" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#c084fc" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#A85832" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#A85832" stopOpacity={0.0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis 
                     dataKey="timestamp" 
                     tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-                    stroke="#475569" 
+                    stroke="var(--foreground-muted)" 
                     fontSize={10} 
                   />
-                  <YAxis stroke="#475569" fontSize={10} domain={[0, Math.max(120, displayRain72h + 20)]} />
-                  <Tooltip content={<TacticalTooltip />} />
+                  <YAxis stroke="var(--foreground-muted)" fontSize={10} domain={[0, Math.max(120, displayRain72h + 20)]} />
+                  <Tooltip content={<CustomTooltip />} />
                   
-                  {/* Linha de Referência do Limiar Crítico do CEMADEN (100mm) */}
                   <ReferenceLine 
                     y={100} 
-                    stroke="#ef4444" 
+                    stroke="#B91C1C" 
                     strokeDasharray="4 4" 
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     label={{ 
-                      value: 'LIMIAR CRÍTICO CEMADEN (100mm)', 
-                      fill: '#ef4444', 
-                      fontSize: 9, 
+                      value: 'Limiar CEMADEN (100mm)', 
+                      fill: '#B91C1C', 
+                      fontSize: 10, 
                       position: 'insideTopRight',
-                      fontFamily: 'monospace',
                       fontWeight: 'bold'
                     }} 
                   />
@@ -330,7 +296,7 @@ export default function Dashboard() {
                     type="monotone" 
                     dataKey="soilMoisture" 
                     name="Saturação Solo (%)" 
-                    stroke="#06b6d4" 
+                    stroke="#A85832" 
                     strokeWidth={2} 
                     fill="url(#satGlow)" 
                   />
@@ -338,42 +304,42 @@ export default function Dashboard() {
                     type="monotone" 
                     dataKey="rainVolume" 
                     name="Chuva Acumulada (mm)" 
-                    stroke="#c084fc" 
+                    stroke="#5C3D2E" 
                     strokeWidth={2.5} 
-                    dot={{ r: 2, fill: '#c084fc' }} 
+                    dot={{ r: 2.5, fill: '#5C3D2E' }} 
                   />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          <div className="flex items-center justify-between text-[9px] font-mono text-gray-500 pt-2 border-t border-white/5 mt-2">
-            <span>MODELO HIDROLÓGICO: INFILTRAÇÃO GREEN-AMPT</span>
-            <span className="text-red-400 font-bold">ALERTA DISPARADO COM PRECIPITAÇÃO &gt; 100mm/72h</span>
+          <div className="flex items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-2">
+            <span>Modelo Hidrológico de Infiltração</span>
+            <span className="text-[#B91C1C] dark:text-[#F87171] font-semibold">Alerta com precipitação &gt; 100mm/72h</span>
           </div>
         </div>
 
-        {/* Gráfico 2: Estabilidade Estrutural e Fator de Segurança (FS) */}
-        <div className="border border-white/10 rounded-2xl bg-slate-950/70 backdrop-blur-xl p-5 shadow-2xl flex flex-col justify-between group hover:border-orange-500/30 transition-colors">
-          <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+        {/* Gráfico 2: Estabilidade Estrutural */}
+        <div className="theme-card rounded-2xl p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4 border-b border-[var(--border)] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400">
+              <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                 <Mountain className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm">Estabilidade Estrutural & Ruptura</h3>
-                <span className="text-[10px] font-mono text-gray-400 uppercase">
-                  Fator de Segurança (FS) vs Índice de Risco (%)
+                <h3 className="font-bold text-[var(--foreground)] text-sm">Estabilidade Estrutural & Risco</h3>
+                <span className="text-[11px] text-[var(--foreground-muted)]">
+                  Fator de Segurança (FS) vs. Índice de Risco (%)
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-[10px] font-mono">
-              <span className="flex items-center gap-1 text-cyan-400">
-                <span className="w-2 h-2 rounded-full bg-cyan-400" /> Fator Segurança (FS)
+            <div className="flex items-center gap-3 text-xs font-medium">
+              <span className="flex items-center gap-1.5 text-[#2E6F40] dark:text-[#52B788]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2E6F40]" /> Fator Segurança (FS)
               </span>
-              <span className="flex items-center gap-1 text-red-400">
-                <span className="w-2 h-2 rounded-full bg-red-400" /> Índice de Risco (%)
+              <span className="flex items-center gap-1.5 text-[#B91C1C]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#B91C1C]" /> Índice de Risco (%)
               </span>
             </div>
           </div>
@@ -382,41 +348,38 @@ export default function Dashboard() {
             {mounted && (
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <LineChart data={chartData} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis 
                     dataKey="timestamp" 
                     tickFormatter={(t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-                    stroke="#475569" 
+                    stroke="var(--foreground-muted)" 
                     fontSize={10} 
                   />
-                  <YAxis stroke="#475569" fontSize={10} domain={[0, 100]} />
-                  <Tooltip content={<TacticalTooltip />} />
+                  <YAxis stroke="var(--foreground-muted)" fontSize={10} domain={[0, 100]} />
+                  <Tooltip content={<CustomTooltip />} />
 
-                  {/* Linhas Críticas Geotécnicas de Fator de Segurança */}
                   <ReferenceLine 
                     y={50} 
-                    stroke="#eab308" 
+                    stroke="#B47B1C" 
                     strokeDasharray="3 3" 
                     strokeWidth={1}
                     label={{ 
-                      value: 'LIMIAR DE ATENÇÃO (50%)', 
-                      fill: '#eab308', 
-                      fontSize: 8.5, 
-                      position: 'insideBottomRight',
-                      fontFamily: 'monospace'
+                      value: 'Atenção (50%)', 
+                      fill: '#B47B1C', 
+                      fontSize: 9.5, 
+                      position: 'insideBottomRight'
                     }} 
                   />
                   <ReferenceLine 
                     y={80} 
-                    stroke="#ef4444" 
+                    stroke="#B91C1C" 
                     strokeDasharray="4 4" 
                     strokeWidth={1.5}
                     label={{ 
-                      value: 'RISCO CRÍTICO EVACUAÇÃO (80%)', 
-                      fill: '#ef4444', 
-                      fontSize: 8.5, 
-                      position: 'insideTopRight',
-                      fontFamily: 'monospace'
+                      value: 'Risco Crítico (80%)', 
+                      fill: '#B91C1C', 
+                      fontSize: 9.5, 
+                      position: 'insideTopRight'
                     }} 
                   />
 
@@ -424,15 +387,15 @@ export default function Dashboard() {
                     type="monotone" 
                     dataKey="risk" 
                     name="Índice de Risco (%)" 
-                    stroke="#ef4444" 
+                    stroke="#B91C1C" 
                     strokeWidth={2.5} 
-                    dot={{ r: 3, fill: '#ef4444' }} 
+                    dot={{ r: 3, fill: '#B91C1C' }} 
                   />
                   <Line 
                     type="monotone" 
                     dataKey="safetyFactor" 
                     name="Fator de Segurança (FS)" 
-                    stroke="#06b6d4" 
+                    stroke="#2E6F40" 
                     strokeWidth={2} 
                     dot={false} 
                   />
@@ -441,88 +404,81 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="flex items-center justify-between text-[9px] font-mono text-gray-500 pt-2 border-t border-white/5 mt-2">
-            <span>EQUILÍBRIO LIMITE: TENSÕES CISALHANTES TAU_D / TAU_R</span>
-            <span className="text-cyan-400 font-bold">FS &lt; 1.00 CONFIGURA COLAPSO ESTRUTURAL</span>
+          <div className="flex items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-2">
+            <span>Equilíbrio-Limite de Mohr-Coulomb</span>
+            <span className="text-[var(--primary)] font-semibold">FS &lt; 1,00 indica ruptura de talude</span>
           </div>
         </div>
       </div>
 
-      {/* 5. Bloco Inferior: Sismógrafo Geotécnico + Despacho Técnico Oficial de Defesa Civil */}
+      {/* Bloco Inferior: Sismógrafo + Parecer Técnico */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sismógrafo Geotécnico de Microssismicidade */}
         <SeismographMonitor currentVibration={displayVibration} />
 
-        {/* Despacho Técnico Oficial de Defesa Civil */}
-        <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/30 transition-colors">
-          {/* Header do Despacho */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+        <div className="theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3.5 mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                 <FileText className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                  Despacho Geotécnico Oficial
-                  <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-white/5 text-gray-400 border border-white/10">
-                    CICC-DOC #GEO-2026
-                  </span>
+                <h3 className="font-bold text-[var(--foreground)] text-sm flex items-center gap-2">
+                  Parecer Geotécnico Consolidado
                 </h3>
-                <p className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-                  Parecer emitido pela Central Integrada de Gestão de Desastres
+                <p className="text-[11px] text-[var(--foreground-muted)]">
+                  Síntese estrutural para tomada de decisão operacional
                 </p>
               </div>
             </div>
 
-            <div className="text-right font-mono text-[10px] text-gray-500 hidden sm:block">
-              <span>PROJEÇÃO 24H:</span>{' '}
-              <strong className={displayFutureRisk >= 70 ? 'text-red-400 font-bold' : 'text-slate-200'}>
+            <div className="text-right text-xs text-[var(--foreground-muted)] hidden sm:block">
+              <span>Projeção 24h:</span>{' '}
+              <strong className={displayFutureRisk >= 70 ? 'text-[#B91C1C] font-bold' : 'text-[var(--foreground)] font-bold'}>
                 {displayFutureRisk}%
               </strong>
             </div>
           </div>
 
-          {/* Dados do Quadrante e Diagnóstico Oficial */}
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2 bg-black/40 border border-white/5 rounded-xl p-3 text-[11px] font-mono">
+            <div className="grid grid-cols-3 gap-2.5 theme-card-muted rounded-xl p-3 text-xs">
               <div>
-                <span className="text-[9px] text-gray-500 uppercase block">Setor de Análise</span>
-                <strong className="text-white truncate block">{location || "Morro da Oficina (Petrópolis)"}</strong>
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Setor Analisado</span>
+                <strong className="text-[var(--foreground)] truncate block mt-0.5">{location || "Morro da Oficina (Petrópolis)"}</strong>
               </div>
               <div>
-                <span className="text-[9px] text-gray-500 uppercase block">Manto / Solo</span>
-                <strong className="text-cyan-400 truncate block">{geomorphology || "Solo Residual / Colúvio"}</strong>
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Litologia / Manto</span>
+                <strong className="text-[var(--primary)] truncate block mt-0.5">{geomorphology || "Solo Residual / Colúvio"}</strong>
               </div>
               <div>
-                <span className="text-[9px] text-gray-500 uppercase block">Nível de Resposta</span>
-                <strong className={displayRiskCode === 'R4' ? 'text-red-400' : displayRiskCode === 'R3' ? 'text-orange-400' : 'text-emerald-400'}>
-                  {displayRiskCode === 'R4' ? 'PLANO VERMELHO' : displayRiskCode === 'R3' ? 'PLANO LARANJA' : 'MONITORAMENTO'}
+                <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Nível de Resposta</span>
+                <strong className={`block mt-0.5 ${
+                  displayRiskCode === 'R4' ? 'text-[#B91C1C]' : displayRiskCode === 'R3' ? 'text-[#C85A17]' : 'text-[#2E6F40] dark:text-[#52B788]'
+                }`}>
+                  {displayRiskCode === 'R4' ? 'Interdição / Alerta' : displayRiskCode === 'R3' ? 'Vistoria Imediata' : 'Operação Normal'}
                 </strong>
               </div>
             </div>
 
-            {/* Parecer textual */}
-            <div className="p-3.5 rounded-xl bg-black/30 border border-white/5 text-xs text-gray-300 leading-relaxed font-mono relative">
+            <div className="p-4 rounded-xl theme-card-muted text-xs text-[var(--foreground)] leading-relaxed">
               <p>
                 {current?.diagnosis || diagnosis || 
-                  "Condições estruturais sob monitoramento ativo. As leituras telemétricas combinadas de umidade intersticial, inclinação de talude e precipitação acumulada indicam estabilidade com base no modelo de Mohr-Coulomb."}
+                  "Condições estruturais sob monitoramento ativo. As leituras combinadas de umidade do solo, declividade topográfica e precipitação acumulada indicam estabilidade segundo o critério de Mohr-Coulomb."}
               </p>
               {displayRiskCode === 'R4' && (
-                <div className="mt-2 pt-2 border-t border-red-500/20 text-red-400 flex items-center gap-2 font-bold text-[11px]">
-                  <AlertOctagon className="w-4 h-4 animate-bounce" />
-                  RECOMENDAÇÃO: Disparo imediato de sirenes e evacuação de moradores para os pontos de apoio seguros.
+                <div className="mt-2.5 pt-2.5 border-t border-[#B91C1C]/25 text-[#B91C1C] dark:text-[#F87171] flex items-center gap-2 font-semibold text-xs">
+                  <AlertOctagon className="w-4 h-4 shrink-0" />
+                  Recomendação: Acionamento de protocolo preventivo e isolamento da área de encosta.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Assinatura Digital e Selo */}
-          <div className="flex flex-wrap items-center justify-between text-[9px] font-mono text-gray-500 pt-3 border-t border-white/5 mt-3">
-            <div className="flex items-center gap-1.5 text-emerald-400">
+          <div className="flex flex-wrap items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-3">
+            <div className="flex items-center gap-1.5 text-[#2E6F40] dark:text-[#52B788] font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>ASSINADO DIGITALMENTE // DEFESA CIVIL & INSTITUTO DE GEOTECNIA</span>
+              <span>Conformidade Técnica ABNT NBR 11682</span>
             </div>
-            <span className="text-gray-600">HASH: SHA256-NUP-2026-OK</span>
+            <span className="font-mono text-[10px]">SHA256-AUDIT</span>
           </div>
         </div>
       </div>
@@ -530,9 +486,6 @@ export default function Dashboard() {
   );
 }
 
-// -------------------------------------------------------------
-// Componente de Card de Métrica Industrial com Micro-Barra de Nível
-// -------------------------------------------------------------
 interface MetricCardProps {
   title: string;
   value: number | string | undefined | null;
@@ -552,30 +505,29 @@ function MetricCard({
   color, 
   tag,
   capacityPercent = 50,
-  barColor = "bg-blue-500"
+  barColor = "bg-[var(--primary)]"
 }: MetricCardProps) {
   return (
-    <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-4 flex flex-col justify-between hover:border-white/20 transition-all shadow-xl relative overflow-hidden group border-t-white/10">
+    <div className="theme-card rounded-2xl p-4 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-gray-400 truncate max-w-[120px]">
+        <span className="text-xs font-medium text-[var(--foreground-muted)] truncate max-w-[140px]">
           {title}
         </span>
-        <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10 ${color}`}>
-          <Icon className="w-3.5 h-3.5" />
+        <div className={`p-1.5 rounded-lg bg-[var(--surface-muted)] ${color}`}>
+          <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="my-2">
-        <div className="text-2xl md:text-3xl font-black font-mono text-white tracking-tight flex items-baseline gap-1.5">
+      <div className="my-1.5">
+        <div className="text-2xl md:text-3xl font-extrabold font-mono text-[var(--foreground)] tracking-tight flex items-baseline gap-1.5">
           {value !== undefined && value !== null ? value : '-'}
         </div>
-        <span className="text-[10px] font-mono text-gray-500 font-medium">{unit}</span>
+        <span className="text-[11px] text-[var(--foreground-muted)]">{unit}</span>
       </div>
 
-      {/* Micro-barra de capacidade integrada na base */}
-      <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 mt-1">
-        <span className="text-[8px] font-mono text-gray-500 uppercase">{tag}</span>
-        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden max-w-[90px]">
+      <div className="pt-2.5 border-t border-[var(--border)] flex items-center justify-between gap-2 mt-1">
+        <span className="text-[9px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">{tag}</span>
+        <div className="flex-1 h-1.5 bg-[var(--surface-muted)] rounded-full overflow-hidden max-w-[90px]">
           <div 
             className={`h-full ${barColor} rounded-full transition-all duration-700`}
             style={{ width: `${Math.min(100, Math.max(0, capacityPercent))}%` }}
@@ -586,23 +538,20 @@ function MetricCard({
   );
 }
 
-// -------------------------------------------------------------
-// Tooltip Tático Aeroespacial Customizado para Recharts
-// -------------------------------------------------------------
-function TacticalTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="bg-slate-950/95 border border-white/20 rounded-xl p-3 shadow-2xl backdrop-blur-md text-[11px] font-mono text-white min-w-[160px]">
-      <div className="text-[9px] text-gray-400 border-b border-white/10 pb-1.5 mb-2 flex items-center justify-between">
-        <span>HORÁRIO:</span>
-        <strong className="text-cyan-400">{new Date(label).toLocaleTimeString()}</strong>
+    <div className="theme-card rounded-xl p-3 shadow-lg text-xs min-w-[160px]">
+      <div className="text-[10px] text-[var(--foreground-muted)] border-b border-[var(--border)] pb-1.5 mb-2 flex items-center justify-between">
+        <span>Horário:</span>
+        <strong className="text-[var(--foreground)] font-mono">{new Date(label).toLocaleTimeString()}</strong>
       </div>
       <div className="space-y-1">
         {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center justify-between gap-3 text-[10px]">
-            <span style={{ color: entry.color }}>{entry.name}:</span>
-            <strong className="text-white">{entry.value}</strong>
+          <div key={index} className="flex items-center justify-between gap-3 text-[11px]">
+            <span style={{ color: entry.color }} className="font-medium">{entry.name}:</span>
+            <strong className="text-[var(--foreground)] font-mono">{entry.value}</strong>
           </div>
         ))}
       </div>

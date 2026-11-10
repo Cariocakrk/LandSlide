@@ -9,7 +9,6 @@ import {
   Sun,
   Wind,
   Droplets,
-  Thermometer,
   RefreshCw,
   MapPin,
   Umbrella,
@@ -42,12 +41,12 @@ export function WeatherCornerHud({ className = '', compact = false }: WeatherCor
     soilSaturationPercent,
     cemadenThreshold,
     lastWeatherUpdate,
-    fetchAndApplyWeather
+    fetchAndApplyWeather,
+    updateAllSensors
   } = useTerrainStore();
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // Busca inicial automática caso ainda não tenha atualizado
   useEffect(() => {
     if (!lastWeatherUpdate) {
       fetchAndApplyWeather();
@@ -60,168 +59,246 @@ export function WeatherCornerHud({ className = '', compact = false }: WeatherCor
     setTimeout(() => setRefreshing(false), 600);
   };
 
-  const renderWeatherIcon = () => {
-    if (weatherSeverity === 'storm') {
-      return <CloudLightning className="w-7 h-7 text-red-400 animate-pulse" />;
+  const handleToggleRainSimulation = () => {
+    if (isRainingNow && currentRainIntensity >= 15) {
+      // Voltar ao clima real do CEP
+      fetchAndApplyWeather();
+    } else {
+      // Ativar chuva expressiva no relevo 3D e painel
+      useTerrainStore.setState({
+        isRainingNow: true,
+        currentRainIntensity: 24.5,
+        accumulatedRain24h: 68.0,
+        rainVolume: 118.0,
+        soilSaturationPercent: 86,
+        humidity: 94,
+        cloudCover: 98,
+        weatherCondition: 'Chuva Torrencial na Serra',
+        weatherSeverity: 'storm',
+        cemadenThreshold: 'Alerta Máximo (>100mm/72h)'
+      });
+      updateAllSensors({
+        rainVolume: 118,
+        soilMoisture: 86,
+        vibration: 3.2
+      });
     }
-    if (weatherSeverity === 'rain' || isRainingNow) {
-      return <CloudRain className="w-7 h-7 text-cyan-400 animate-bounce" />;
-    }
-    if (weatherSeverity === 'drizzle') {
-      return <CloudDrizzle className="w-7 h-7 text-blue-300" />;
-    }
-    if (weatherSeverity === 'cloudy') {
-      return <Cloud className="w-7 h-7 text-slate-300" />;
-    }
-    return <Sun className="w-7 h-7 text-amber-400" />;
   };
 
-  const rainBadgeColor = isRainingNow
+  const renderWeatherIcon = () => {
+    if (weatherSeverity === 'storm') {
+      return <CloudLightning className="w-6 h-6 text-[#B91C1C]" />;
+    }
+    if (weatherSeverity === 'rain' || isRainingNow) {
+      return <CloudRain className="w-6 h-6 text-[#3B82F6]" />;
+    }
+    if (weatherSeverity === 'drizzle') {
+      return <CloudDrizzle className="w-6 h-6 text-[#3B82F6]" />;
+    }
+    if (weatherSeverity === 'cloudy') {
+      return <Cloud className="w-6 h-6 text-[var(--foreground-muted)]" />;
+    }
+    return <Sun className="w-6 h-6 text-[#B47B1C]" />;
+  };
+
+  const hasActiveRain = isRainingNow || currentRainIntensity > 0;
+
+  const rainBadgeColor = hasActiveRain
     ? currentRainIntensity >= 15
-      ? 'bg-red-500/20 text-red-300 border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
-      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+      ? 'bg-[#B91C1C]/15 text-[#B91C1C] border-[#B91C1C]/35'
+      : 'bg-[#3B82F6]/15 text-[#3B82F6] border-[#3B82F6]/35'
+    : 'bg-[#2E6F40]/12 text-[#2E6F40] dark:text-[#52B788] border-[#2E6F40]/25';
+
+  const rainStatusLabel = hasActiveRain
+    ? currentRainIntensity >= 15
+      ? 'Chuva Forte'
+      : currentRainIntensity >= 2
+      ? 'Chovendo'
+      : 'Chuva Leve'
+    : 'Sem Chuva';
 
   return (
     <div
-      className={`bg-slate-950/88 backdrop-blur-2xl border border-white/15 rounded-2xl p-4 shadow-[0_15px_40px_rgba(0,0,0,0.85)] text-white font-sans select-none w-[310px] sm:w-[340px] ${className}`}
+      className={`relative overflow-hidden theme-card backdrop-blur-xl rounded-2xl p-4 font-sans select-none w-[310px] sm:w-[340px] ${className}`}
     >
-      {/* Cabeçalho da Estação Meteorológica Local */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-3">
-        <div className="min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block shrink-0" />
-            <span>CLIMA ATUAL NO LOCAL (CEP)</span>
-          </div>
-          <div className="text-xs font-bold text-gray-200 truncate mt-0.5 flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="truncate">{location || 'Petrópolis - RJ (CEP 25680-195)'}</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleManualRefresh}
-          title="Atualizar meteorologia agora"
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white transition-all cursor-pointer shrink-0 active:scale-95"
+      {/* Efeito Visual Sutil de Chuva no Fundo do Card Meteorológico (apenas quando está chovendo) */}
+      {hasActiveRain && (
+        <svg
+          viewBox="0 0 340 260"
+          fill="none"
+          className="pointer-events-none absolute inset-0 w-full h-full object-cover z-0 opacity-45"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-cyan-400' : ''}`} />
-        </button>
-      </div>
+          <defs>
+            <linearGradient id="rainStreakGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#60A5FA" stopOpacity="0" />
+              <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.35" />
+            </linearGradient>
+          </defs>
+          <g stroke="url(#rainStreakGrad)" strokeWidth="1" strokeLinecap="round">
+            <line x1="45" y1="5" x2="28" y2="55" />
+            <line x1="115" y1="15" x2="98" y2="68" />
+            <line x1="195" y1="8" x2="178" y2="58" />
+            <line x1="275" y1="18" x2="258" y2="70" />
+            <line x1="85" y1="95" x2="68" y2="145" />
+            <line x1="230" y1="100" x2="213" y2="150" />
+          </g>
+        </svg>
+      )}
 
-      {/* Bloco Principal: Temperatura + Condição + Status de Chuva */}
-      <div className="flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl p-3 mb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-center">
-            {renderWeatherIcon()}
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black tracking-tight text-white font-mono">
-                {temperature.toFixed(1)}°C
-              </span>
-              <span className="text-[10px] text-gray-400 font-mono">
-                (Sens. {apparentTemperature.toFixed(0)}°C)
-              </span>
+      <div className="relative z-10">
+        {/* Cabeçalho da Estação Meteorológica Local */}
+        <div className="flex items-center justify-between border-b border-[var(--border)] pb-2.5 mb-3">
+          <div className="min-w-0 pr-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--primary)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--primary)] inline-block shrink-0" />
+              <span>Clima Atual no Local (CEP)</span>
             </div>
-            <div className="text-xs font-bold text-cyan-200 mt-0.5">{weatherCondition}</div>
-          </div>
-        </div>
-
-        <div className="text-right">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-mono font-black uppercase tracking-wider border ${rainBadgeColor}`}
-          >
-            <Umbrella className="w-2.5 h-2.5" />
-            {isRainingNow ? 'CHOVENDO' : 'SEM CHUVA'}
-          </span>
-          <div className="text-[9px] text-gray-500 font-mono mt-1">
-            {latitude ? `${latitude.toFixed(3)}°, ${longitude?.toFixed(3)}°` : '-22.505°, -43.178°'}
-          </div>
-        </div>
-      </div>
-
-      {/* Grade Detalhada de Pluviometria e Umidade */}
-      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono mb-3">
-        <div className="bg-black/40 border border-white/5 rounded-xl p-2.5">
-          <div className="text-[9px] text-gray-400 uppercase flex items-center justify-between">
-            <span>Chuva Agora (1h)</span>
-            <CloudRain className="w-3 h-3 text-cyan-400" />
-          </div>
-          <div className="text-sm font-black text-white mt-0.5">
-            {currentRainIntensity.toFixed(1)} <span className="text-[10px] font-normal text-gray-400">mm/h</span>
-          </div>
-          <div className="text-[9px] text-cyan-400/90">
-            24h: {accumulatedRain24h.toFixed(1)} mm
-          </div>
-        </div>
-
-        <div className="bg-black/40 border border-white/5 rounded-xl p-2.5">
-          <div className="text-[9px] text-gray-400 uppercase flex items-center justify-between">
-            <span>Acumulado 72h</span>
-            <Gauge className="w-3 h-3 text-blue-400" />
-          </div>
-          <div
-            className={`text-sm font-black mt-0.5 ${
-              rainVolume >= 100 ? 'text-red-400' : rainVolume >= 60 ? 'text-orange-400' : 'text-blue-400'
-            }`}
-          >
-            {rainVolume.toFixed(1)} <span className="text-[10px] font-normal text-gray-400">mm</span>
-          </div>
-          <div className="text-[9px] text-gray-400">
-            Próx. 24h: +{forecastRain24h.toFixed(1)} mm
-          </div>
-        </div>
-
-        {!compact && (
-          <>
-            <div className="bg-black/40 border border-white/5 rounded-xl p-2.5">
-              <div className="text-[9px] text-gray-400 uppercase flex items-center justify-between">
-                <span>Ar & Solo</span>
-                <Droplets className="w-3 h-3 text-emerald-400" />
-              </div>
-              <div className="text-xs font-bold text-white mt-0.5">
-                Ar: <span className="text-emerald-400">{humidity}%</span> | Solo:{' '}
-                <span className="text-cyan-300">{soilSaturationPercent}%</span>
-              </div>
-              <div className="text-[9px] text-gray-500">Poropressão ativa</div>
+            <div className="text-xs font-bold text-[var(--foreground)] truncate mt-0.5 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
+              <span className="truncate">{location || 'Petrópolis - RJ (CEP 25680-195)'}</span>
             </div>
+          </div>
 
-            <div className="bg-black/40 border border-white/5 rounded-xl p-2.5">
-              <div className="text-[9px] text-gray-400 uppercase flex items-center justify-between">
-                <span>Vento & Nuvens</span>
-                <Wind className="w-3 h-3 text-amber-400" />
-              </div>
-              <div className="text-xs font-bold text-white mt-0.5">
-                {windSpeed.toFixed(1)} km/h
-              </div>
-              <div className="text-[9px] text-gray-500">Nebulosidade: {cloudCover}%</div>
-            </div>
-          </>
-        )}
-      </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleToggleRainSimulation}
+              title="Intensificar / Alternar chuva no Mapa 3D"
+              className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer active:scale-95 flex items-center gap-1 ${
+                isRainingNow && currentRainIntensity >= 15
+                  ? 'bg-[#3B82F6] text-white border-[#3B82F6]'
+                  : 'theme-card-muted text-[var(--foreground)] hover:border-[#3B82F6]'
+              }`}
+            >
+              <CloudRain className="w-3 h-3" />
+              <span>{isRainingNow && currentRainIntensity >= 15 ? 'Chuva Forte' : 'Simular Chuva'}</span>
+            </button>
 
-      {/* Rodapé Status CEMADEN */}
-      <div className="bg-slate-900/90 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-[10px] font-mono">
-        <div className="truncate">
-          <span className="text-gray-500 uppercase mr-1">CEMADEN:</span>
-          <strong
-            className={
-              rainVolume >= 100
-                ? 'text-red-400'
-                : rainVolume >= 60
-                ? 'text-orange-400'
-                : rainVolume >= 30
-                ? 'text-yellow-400'
-                : 'text-emerald-400'
-            }
-          >
-            {cemadenThreshold}
-          </strong>
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              title="Atualizar meteorologia real agora"
+              className="p-1.5 rounded-lg theme-card-muted hover:border-[var(--primary)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all cursor-pointer shrink-0 active:scale-95"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-[var(--primary)]' : ''}`} />
+            </button>
+          </div>
         </div>
-        {lastWeatherUpdate && (
-          <span className="text-[9px] text-gray-500 shrink-0">{lastWeatherUpdate}</span>
-        )}
+
+        {/* Bloco Principal: Temperatura + Condição + Status de Chuva */}
+        <div className="flex items-center justify-between theme-card-muted rounded-xl p-3 mb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+              {renderWeatherIcon()}
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold tracking-tight text-[var(--foreground)] font-mono">
+                  {temperature.toFixed(1)}°C
+                </span>
+                <span className="text-[11px] text-[var(--foreground-muted)]">
+                  (Sens. {apparentTemperature.toFixed(0)}°C)
+                </span>
+              </div>
+              <div className="text-xs font-semibold text-[var(--primary)] mt-0.5">{weatherCondition}</div>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${rainBadgeColor}`}
+            >
+              {hasActiveRain ? <Umbrella className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+              {rainStatusLabel}
+            </span>
+            <div className="text-[10px] text-[var(--foreground-muted)] font-mono mt-1">
+              {latitude ? `${latitude.toFixed(3)}°, ${longitude?.toFixed(3)}°` : '-22.505°, -43.178°'}
+            </div>
+          </div>
+        </div>
+
+        {/* Grade Detalhada de Pluviometria e Umidade */}
+        <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+          <div className="theme-card-muted rounded-xl p-2.5">
+            <div className="text-[10px] text-[var(--foreground-muted)] font-medium flex items-center justify-between">
+              <span>Chuva Agora (1h)</span>
+              <CloudRain className="w-3.5 h-3.5 text-[#3B82F6]" />
+            </div>
+            <div className="text-sm font-bold font-mono text-[var(--foreground)] mt-0.5">
+              {currentRainIntensity.toFixed(1)} <span className="text-[10px] font-normal text-[var(--foreground-muted)]">mm/h</span>
+            </div>
+            <div className="text-[10px] text-[var(--primary)] font-medium">
+              24h: {accumulatedRain24h.toFixed(1)} mm
+            </div>
+          </div>
+
+          <div className="theme-card-muted rounded-xl p-2.5">
+            <div className="text-[10px] text-[var(--foreground-muted)] font-medium flex items-center justify-between">
+              <span>Acumulado 72h</span>
+              <Gauge className="w-3.5 h-3.5 text-[var(--primary)]" />
+            </div>
+            <div
+              className={`text-sm font-bold font-mono mt-0.5 ${
+                rainVolume >= 100 ? 'text-[#B91C1C]' : rainVolume >= 60 ? 'text-[#C85A17]' : 'text-[var(--foreground)]'
+              }`}
+            >
+              {rainVolume.toFixed(1)} <span className="text-[10px] font-normal text-[var(--foreground-muted)]">mm</span>
+            </div>
+            <div className="text-[10px] text-[var(--foreground-muted)]">
+              Próx. 24h: +{forecastRain24h.toFixed(1)} mm
+            </div>
+          </div>
+
+          {!compact && (
+            <>
+              <div className="theme-card-muted rounded-xl p-2.5">
+                <div className="text-[10px] text-[var(--foreground-muted)] font-medium flex items-center justify-between">
+                  <span>Ar &amp; Solo</span>
+                  <Droplets className="w-3.5 h-3.5 text-[#2E6F40] dark:text-[#52B788]" />
+                </div>
+                <div className="text-xs font-bold text-[var(--foreground)] mt-0.5">
+                  Ar: <span className="text-[#2E6F40] dark:text-[#52B788]">{humidity}%</span> | Solo:{' '}
+                  <span className="text-[var(--primary)]">{soilSaturationPercent}%</span>
+                </div>
+                <div className="text-[10px] text-[var(--foreground-muted)]">Umidade volumétrica</div>
+              </div>
+
+              <div className="theme-card-muted rounded-xl p-2.5">
+                <div className="text-[10px] text-[var(--foreground-muted)] font-medium flex items-center justify-between">
+                  <span>Vento &amp; Nuvens</span>
+                  <Wind className="w-3.5 h-3.5 text-[#B47B1C]" />
+                </div>
+                <div className="text-xs font-bold font-mono text-[var(--foreground)] mt-0.5">
+                  {windSpeed.toFixed(1)} km/h
+                </div>
+                <div className="text-[10px] text-[var(--foreground-muted)]">Nebulosidade: {cloudCover}%</div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Rodapé Status CEMADEN */}
+        <div className="theme-card-muted rounded-xl px-3 py-2 flex items-center justify-between gap-2 text-[11px]">
+          <div className="truncate">
+            <span className="text-[var(--foreground-muted)] font-medium mr-1">CEMADEN:</span>
+            <strong
+              className={
+                rainVolume >= 100
+                  ? 'text-[#B91C1C]'
+                  : rainVolume >= 60
+                  ? 'text-[#C85A17]'
+                  : rainVolume >= 30
+                  ? 'text-[#B47B1C]'
+                  : 'text-[#2E6F40] dark:text-[#52B788]'
+              }
+            >
+              {cemadenThreshold}
+            </strong>
+          </div>
+          {lastWeatherUpdate && (
+            <span className="text-[10px] font-mono text-[var(--foreground-muted)] shrink-0">{lastWeatherUpdate}</span>
+          )}
+        </div>
       </div>
     </div>
   );

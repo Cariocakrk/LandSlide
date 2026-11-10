@@ -54,22 +54,22 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
   const isRupture = safetyFactor < 1.0;
 
   return (
-    <div className="w-full bg-slate-950/80 border border-white/10 rounded-2xl p-4 backdrop-blur-xl shadow-2xl flex flex-col justify-between">
+    <div className="w-full theme-card rounded-2xl p-5 flex flex-col justify-between">
       {/* Cabeçalho do Gráfico */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3 mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3 mb-2" style={{ borderColor: 'var(--border)' }}>
         <div>
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: cprmClassification.color }} />
-            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cprmClassification.color }} />
+            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--foreground)' }}>
               Diagrama de Tensões de Mohr-Coulomb
             </h4>
           </div>
-          <p className="text-[10px] font-mono text-gray-400 mt-0.5">
-            Envoltória de Ruptura: <strong className="text-cyan-400">τ = c&#39; + σ&#39;·tan(φ&#39;)</strong>
+          <p className="text-[11px] font-mono mt-0.5" style={{ color: 'var(--foreground-muted)' }}>
+            Envoltória de Ruptura: <strong style={{ color: 'var(--primary)' }}>τ = c&#39; + σ&#39;·tan(φ&#39;)</strong>
           </p>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px]">
-          <span className="px-2 py-0.5 rounded border uppercase font-bold" style={{
+        <div className="flex items-center gap-2 font-mono text-[11px]">
+          <span className="px-2.5 py-1 rounded-md border uppercase font-bold" style={{
             backgroundColor: `${cprmClassification.color}15`,
             borderColor: `${cprmClassification.color}40`,
             color: cprmClassification.color
@@ -85,16 +85,11 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
           <defs>
             {/* Gradiente da Zona de Ruptura */}
             <linearGradient id="ruptureZoneGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.05" />
-            </linearGradient>
-            {/* Gradiente da Zona Segura */}
-            <linearGradient id="stableZoneGrad" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.10" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#B91C1C" stopOpacity="0.20" />
+              <stop offset="100%" stopColor="#B91C1C" stopOpacity="0.04" />
             </linearGradient>
             <filter id="pointGlow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="3" result="glow" />
+              <feGaussianBlur stdDeviation="2.5" result="glow" />
               <feComposite in="SourceGraphic" in2="glow" operator="over" />
             </filter>
           </defs>
@@ -110,17 +105,16 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
                   y1={y}
                   x2={padding.left + plotWidth}
                   y2={y}
-                  stroke="#334155"
-                  strokeWidth="0.8"
+                  stroke="var(--border)"
+                  strokeWidth="1"
                   strokeDasharray="3 3"
-                  strokeOpacity="0.4"
                 />
                 <text
                   x={padding.left - 8}
                   y={y + 3}
                   textAnchor="end"
-                  fill="#64748b"
-                  fontSize="8.5"
+                  fill="var(--foreground-muted)"
+                  fontSize="9"
                   fontFamily="monospace"
                 >
                   {val}
@@ -139,17 +133,16 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
                   y1={padding.top}
                   x2={x}
                   y2={padding.top + plotHeight}
-                  stroke="#334155"
-                  strokeWidth="0.8"
+                  stroke="var(--border)"
+                  strokeWidth="1"
                   strokeDasharray="3 3"
-                  strokeOpacity="0.4"
                 />
                 <text
                   x={x}
                   y={padding.top + plotHeight + 14}
                   textAnchor="middle"
-                  fill="#64748b"
-                  fontSize="8.5"
+                  fill="var(--foreground-muted)"
+                  fontSize="9"
                   fontFamily="monospace"
                 >
                   {val}
@@ -164,7 +157,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             y1={padding.top}
             x2={padding.left}
             y2={padding.top + plotHeight}
-            stroke="#94a3b8"
+            stroke="var(--foreground-muted)"
             strokeWidth="1.5"
           />
           <line
@@ -172,7 +165,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             y1={padding.top + plotHeight}
             x2={padding.left + plotWidth}
             y2={padding.top + plotHeight}
-            stroke="#94a3b8"
+            stroke="var(--foreground-muted)"
             strokeWidth="1.5"
           />
 
@@ -181,7 +174,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             x={padding.left + plotWidth / 2}
             y={height - 8}
             textAnchor="middle"
-            fill="#94a3b8"
+            fill="var(--foreground)"
             fontSize="9"
             fontFamily="monospace"
             fontWeight="bold"
@@ -193,7 +186,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             y="16"
             transform="rotate(-90)"
             textAnchor="middle"
-            fill="#94a3b8"
+            fill="var(--foreground)"
             fontSize="9"
             fontFamily="monospace"
             fontWeight="bold"
@@ -208,7 +201,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
           <path
             d={envelopePath}
             fill="none"
-            stroke="#ef4444"
+            stroke="#B91C1C"
             strokeWidth="2.5"
             strokeDasharray="5 3"
           />
@@ -216,7 +209,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             x={scaleX(lastPt.sigma) - 10}
             y={scaleY(lastPt.tauRupture) - 8}
             textAnchor="end"
-            fill="#ef4444"
+            fill="#B91C1C"
             fontSize="8.5"
             fontFamily="monospace"
             fontWeight="bold"
@@ -228,15 +221,16 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
           <circle
             cx={padding.left}
             cy={scaleY(lithology.cohesionKPa)}
-            r="3"
-            fill="#38bdf8"
+            r="3.5"
+            fill="var(--primary)"
           />
           <text
             x={padding.left + 6}
             y={scaleY(lithology.cohesionKPa) + 3}
-            fill="#38bdf8"
-            fontSize="8"
+            fill="var(--primary)"
+            fontSize="8.5"
             fontFamily="monospace"
+            fontWeight="bold"
           >
             c&#39;={lithology.cohesionKPa}kPa
           </text>
@@ -247,20 +241,20 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             y1={scaleY(0)}
             x2={currentX}
             y2={currentY}
-            stroke={isRupture ? '#ef4444' : '#10b981'}
-            strokeWidth="1"
+            stroke={isRupture ? '#B91C1C' : '#2E6F40'}
+            strokeWidth="1.2"
             strokeDasharray="2 2"
-            strokeOpacity="0.7"
+            strokeOpacity="0.8"
           />
           <line
             x1={padding.left}
             y1={currentY}
             x2={currentX}
             y2={currentY}
-            stroke={isRupture ? '#ef4444' : '#10b981'}
-            strokeWidth="1"
+            stroke={isRupture ? '#B91C1C' : '#2E6F40'}
+            strokeWidth="1.2"
             strokeDasharray="2 2"
-            strokeOpacity="0.7"
+            strokeOpacity="0.8"
           />
 
           {/* Ponto Atual de Tensão Atuante (σ', τ_d) */}
@@ -268,16 +262,16 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
             cx={currentX}
             cy={currentY}
             r="7"
-            fill={isRupture ? '#ef4444' : '#10b981'}
-            fillOpacity="0.3"
+            fill={isRupture ? '#B91C1C' : '#2E6F40'}
+            fillOpacity="0.25"
             className="animate-ping"
           />
           <circle
             cx={currentX}
             cy={currentY}
             r="5"
-            fill={isRupture ? '#ef4444' : '#10b981'}
-            stroke="#ffffff"
+            fill={isRupture ? '#B91C1C' : '#2E6F40'}
+            stroke="var(--surface)"
             strokeWidth="1.5"
             filter="url(#pointGlow)"
           />
@@ -286,7 +280,7 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
           <text
             x={Math.min(padding.left + plotWidth - 45, currentX + 8)}
             y={Math.max(padding.top + 14, currentY - 8)}
-            fill={isRupture ? '#f87171' : '#34d399'}
+            fill={isRupture ? '#B91C1C' : '#2E6F40'}
             fontSize="9"
             fontFamily="monospace"
             fontWeight="bold"
@@ -297,20 +291,20 @@ export const MohrCoulombChart: React.FC<MohrCoulombChartProps> = ({ calculation 
       </div>
 
       {/* Rodapé do Gráfico com Grandezas Físicas */}
-      <div className="grid grid-cols-3 gap-2 bg-black/40 border border-white/5 rounded-xl p-2.5 mt-2 font-mono text-[10px]">
+      <div className="grid grid-cols-3 gap-2 theme-card-muted rounded-xl p-3 mt-2 font-mono text-[10px]">
         <div>
-          <span className="text-gray-500 uppercase block text-[8.5px]">Resistência τ_r</span>
-          <strong className="text-white text-xs">{resistingShearStress} kPa</strong>
+          <span className="uppercase block text-[8.5px]" style={{ color: 'var(--foreground-muted)' }}>Resistência τ_r</span>
+          <strong className="text-xs" style={{ color: 'var(--foreground)' }}>{resistingShearStress} kPa</strong>
         </div>
         <div>
-          <span className="text-gray-500 uppercase block text-[8.5px]">Solicitação τ_d</span>
-          <strong className={isRupture ? 'text-red-400 text-xs' : 'text-emerald-400 text-xs'}>
+          <span className="uppercase block text-[8.5px]" style={{ color: 'var(--foreground-muted)' }}>Solicitação τ_d</span>
+          <strong className="text-xs" style={{ color: isRupture ? '#B91C1C' : '#2E6F40' }}>
             {drivingShearStress} kPa
           </strong>
         </div>
         <div>
-          <span className="text-gray-500 uppercase block text-[8.5px]">Poropressão u</span>
-          <strong className="text-cyan-400 text-xs">{poreWaterPressure} kPa</strong>
+          <span className="uppercase block text-[8.5px]" style={{ color: 'var(--foreground-muted)' }}>Poropressão u</span>
+          <strong className="text-xs" style={{ color: 'var(--primary)' }}>{poreWaterPressure} kPa</strong>
         </div>
       </div>
     </div>

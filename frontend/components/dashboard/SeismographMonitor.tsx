@@ -17,9 +17,7 @@ interface WaveformPoint {
 export function SeismographMonitor({ currentVibration }: SeismographMonitorProps) {
   const [waveform, setWaveform] = useState<WaveformPoint[]>([]);
 
-  // Inicializa e alimenta continuamente o sismograma
   useEffect(() => {
-    // Inicialização com 20 amostras base
     const initial: WaveformPoint[] = [];
     const now = Date.now();
     for (let i = 20; i >= 0; i--) {
@@ -37,7 +35,6 @@ export function SeismographMonitor({ currentVibration }: SeismographMonitorProps
     const interval = setInterval(() => {
       const t = new Date();
       const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      // Ruído microssísmico natural de base do solo
       const noise = (Math.random() - 0.5) * 0.2;
       const val = Math.max(0.05, Number((currentVibration + noise).toFixed(2)));
 
@@ -58,50 +55,50 @@ export function SeismographMonitor({ currentVibration }: SeismographMonitorProps
   const isCritical = currentVibration >= 2.5;
   const isWarning = currentVibration >= 1.2 && !isCritical;
 
-  const statusColor = isCritical ? '#ef4444' : isWarning ? '#f59e0b' : '#10b981';
+  const statusColor = isCritical ? '#B91C1C' : isWarning ? '#B47B1C' : '#A85832';
 
   return (
-    <div className="border border-white/10 bg-slate-950/70 backdrop-blur-xl rounded-2xl p-5 shadow-2xl flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+    <div className="theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border)] pb-3.5 mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <Radio className="w-4 h-4 animate-pulse" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] flex items-center justify-center text-[var(--primary)]">
+            <Radio className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-sm tracking-wide flex items-center gap-2">
+            <h3 className="font-bold text-[var(--foreground)] text-sm flex items-center gap-2">
               Sismógrafo Geotécnico de Encosta
-              <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: statusColor }} />
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusColor }} />
             </h3>
-            <p className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-              Monitor de Microssismicidade e Rastejo Estrutural (Creep)
+            <p className="text-[11px] text-[var(--foreground-muted)]">
+              Monitoramento de vibração do solo e rastejo estrutural
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-black/40 border border-white/5 px-3 py-1.5 rounded-lg text-right">
-            <span className="text-[9px] font-mono text-gray-500 uppercase block">Pico Recente</span>
-            <span className="text-xs font-mono font-bold text-white">{peak.toFixed(2)} mm/s</span>
+        <div className="flex items-center gap-2.5">
+          <div className="theme-card-muted px-3 py-1.5 rounded-lg text-right">
+            <span className="text-[9px] text-[var(--foreground-muted)] uppercase block">Pico Recente</span>
+            <span className="text-xs font-mono font-bold text-[var(--foreground)]">{peak.toFixed(2)} mm/s</span>
           </div>
 
           <div 
-            className="px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5"
             style={{
-              backgroundColor: `${statusColor}15`,
-              borderColor: `${statusColor}40`,
+              backgroundColor: `${statusColor}14`,
+              borderColor: `${statusColor}35`,
               color: statusColor
             }}
           >
             {isCritical ? (
               <>
-                <AlertOctagon className="w-3.5 h-3.5 animate-bounce" />
-                <span>Ruptura Iminente</span>
+                <AlertOctagon className="w-3.5 h-3.5" />
+                <span>Instável</span>
               </>
             ) : isWarning ? (
               <>
                 <Activity className="w-3.5 h-3.5" />
-                <span>Rastejo Detectado</span>
+                <span>Atenção</span>
               </>
             ) : (
               <>
@@ -113,36 +110,27 @@ export function SeismographMonitor({ currentVibration }: SeismographMonitorProps
         </div>
       </div>
 
-      {/* Seismograph Oscilloscope Viewport */}
-      <div className="h-44 w-full bg-[#020907] border border-emerald-500/20 rounded-xl p-2 relative overflow-hidden shadow-inner">
-        {/* Phosphor Grid Lines Overlay */}
-        <div 
-          className="absolute inset-0 pointer-events-none opacity-20"
-          style={{
-            backgroundImage: `linear-gradient(to right, #10b981 1px, transparent 1px), linear-gradient(to bottom, #10b981 1px, transparent 1px)`,
-            backgroundSize: '24px 24px'
-          }}
-        />
-
+      {/* Seismograph Viewport */}
+      <div className="h-44 w-full theme-card-muted rounded-xl p-2 relative overflow-hidden">
         <div className="w-full h-full relative z-10" style={{ minWidth: 0 }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <AreaChart data={waveform} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <defs>
                 <linearGradient id="seismicGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={statusColor} stopOpacity={0.4} />
+                  <stop offset="5%" stopColor={statusColor} stopOpacity={0.3} />
                   <stop offset="95%" stopColor={statusColor} stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#10b98122" strokeDasharray="2 2" vertical={false} />
-              <XAxis dataKey="time" stroke="#059669" fontSize={9} tickLine={false} />
-              <YAxis stroke="#059669" fontSize={9} domain={[0, Math.max(3.5, peak * 1.3)]} tickLine={false} />
+              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="time" stroke="var(--foreground-muted)" fontSize={9} tickLine={false} />
+              <YAxis stroke="var(--foreground-muted)" fontSize={9} domain={[0, Math.max(3.5, peak * 1.3)]} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(2, 9, 7, 0.95)',
-                  borderColor: '#059669',
-                  borderRadius: '8px',
-                  fontSize: '10px',
-                  fontFamily: 'monospace'
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)',
+                  borderRadius: '10px',
+                  fontSize: '11px',
                 }}
                 formatter={(val: any) => [`${val} mm/s`, 'Velocidade de Partícula']}
               />
@@ -160,14 +148,14 @@ export function SeismographMonitor({ currentVibration }: SeismographMonitorProps
       </div>
 
       {/* Technical Footer */}
-      <div className="flex flex-wrap items-center justify-between text-[9px] font-mono text-gray-500 pt-3 border-t border-white/5 mt-3">
+      <div className="flex flex-wrap items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-3">
         <div className="flex items-center gap-2">
-          <span className="text-emerald-400">● PIEZÔMETRO TRI-AXIAL PZ-04</span>
+          <span className="text-[var(--primary)] font-semibold">● Piezômetro Tri-Axial PZ-04</span>
           <span>•</span>
-          <span>BANDA: 0.2 - 25 Hz</span>
+          <span>Banda: 0.2 - 25 Hz</span>
         </div>
         <div>
-          <span>LIMIAR DE RUPTURA DINÂMICA: <strong>2.50 mm/s</strong></span>
+          <span>Limiar de Vibração Crítica: <strong className="text-[var(--foreground)] font-mono">2.50 mm/s</strong></span>
         </div>
       </div>
     </div>

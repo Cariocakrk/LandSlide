@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ShieldAlert, X, Loader2, CheckCircle2, AlertCircle, Phone, Home, KeyRound } from 'lucide-react';
+import { Mail, Lock, User, X, Loader2, CheckCircle2, AlertCircle, Phone, Home, KeyRound } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { apiFetch } from '@/lib/api';
 
@@ -38,7 +38,6 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
     setError(null);
     setSuccess(null);
 
-    // Se estivermos no fluxo de verificação 2FA
     if (twoFactorRequired) {
       try {
         const res = await apiFetch('/api/auth/verify-2fa', {
@@ -90,7 +89,6 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
       }
 
       if (activeTab === 'login') {
-        // Se o backend exigir verificação de 2 fatores
         if (data.twoFactorRequired) {
           setTwoFactorRequired(true);
           setTempToken(data.tempToken);
@@ -138,16 +136,15 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
         throw new Error(data.error || 'Falha no login de demonstração');
       }
       loginStore(data.user, data.token);
-      setSuccess('Acesso concedido à Banca Avaliadora! Carregando...');
+      setSuccess('Acesso concedido ao Avaliador! Carregando...');
       setTimeout(() => {
         setSuccess(null);
         onClose();
       }, 1200);
-    } catch (err: any) {
-      // Fallback de demonstração offline caso o backend remoto esteja temporariamente inacessível
+    } catch {
       loginStore({
         id: 'evaluator-demo-id',
-        name: 'Prof. Avaliador (Banca TCC)',
+        name: 'Eng. Avaliador Senior',
         email: 'admin@defesacivil.gov.br',
         role: 'OPERATOR'
       }, 'mock-evaluator-jwt-token');
@@ -173,13 +170,13 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Dark Blur Overlay Background */}
+          {/* Blur Overlay */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/85 backdrop-blur-md"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           />
 
           {/* Modal Container */}
@@ -188,12 +185,13 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', duration: 0.4 }}
-            className="relative border border-white/10 bg-[#070709ee] backdrop-blur-3xl rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] max-w-md w-full overflow-hidden z-10"
+            className="relative theme-card rounded-2xl shadow-2xl max-w-md w-full overflow-hidden z-10"
           >
             {/* Top Close Button */}
             <button 
               onClick={onClose}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white hover:bg-white/5 w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+              className="absolute top-4 right-4 w-8 h-8 rounded-lg theme-card-muted flex items-center justify-center transition-colors cursor-pointer"
+              style={{ color: 'var(--foreground-muted)' }}
             >
               <X className="w-4 h-4" />
             </button>
@@ -202,22 +200,25 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
             <div className="p-8">
               {/* Logo / Header */}
               <div className="flex flex-col items-center mb-6 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-3 shadow-inner">
+                <div className="w-16 h-16 flex items-center justify-center mb-3">
                   {twoFactorRequired ? (
-                    <KeyRound className="w-6 h-6 animate-pulse" />
+                    <KeyRound className="w-8 h-8" style={{ color: 'var(--primary)' }} />
                   ) : (
-                    <ShieldAlert className="w-6 h-6 animate-pulse" />
+                    <>
+                      <img src="/logo-landslide.png" alt="LandSlide" className="w-14 h-14 object-contain logo-light" />
+                      <img src="/logo-landslide-dark.png" alt="LandSlide" className="w-14 h-14 object-contain logo-dark" />
+                    </>
                   )}
                 </div>
-                <h3 className="text-xl font-black text-white tracking-wide">
-                  {twoFactorRequired ? 'Confirmação de Identidade' : 'Central GeoShield Monitor'}
+                <h3 className="text-xl font-extrabold tracking-tight" style={{ color: 'var(--foreground)' }}>
+                  {twoFactorRequired ? 'Confirmação de Identidade' : 'LandSlide Geotecnia'}
                 </h3>
-                <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-mono">
-                  {twoFactorRequired ? 'Código de 2 fatores (2FA)' : 'Painel de Controle e Monitoramento'}
+                <p className="text-[11px] mt-1 uppercase tracking-widest font-mono" style={{ color: 'var(--foreground-muted)' }}>
+                  {twoFactorRequired ? 'Verificação de 2 Fatores (2FA)' : 'Central de Inteligência e Monitoramento'}
                 </p>
 
                 {message && !twoFactorRequired && (
-                  <div className="mt-3 text-xs text-yellow-500/90 bg-yellow-500/5 border border-yellow-500/10 p-2.5 rounded-lg leading-relaxed max-w-xs font-sans">
+                  <div className="mt-3 text-xs bg-[#B47B1C]/10 border border-[#B47B1C]/30 text-[#B47B1C] p-2.5 rounded-lg leading-relaxed max-w-xs font-sans">
                     ⚠️ {message}
                   </div>
                 )}
@@ -225,36 +226,37 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
 
               {/* Evaluator 1-Click Access Card */}
               {!twoFactorRequired && (
-                <div className="mb-4 p-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent flex flex-col gap-2">
+                <div className="mb-5 p-3.5 rounded-xl theme-card-muted flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                      🎓 Avaliação / Banca de TCC
+                    <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                      Acesso Rápido Executivo / Avaliador
                     </span>
-                    <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">
-                      1-Clique • Sem 2FA
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-mono font-semibold" style={{ backgroundColor: 'var(--surface)', color: 'var(--primary)' }}>
+                      1-Clique • Direto
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleDemoLogin}
                     disabled={loading}
-                    className="w-full py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full py-2.5 px-3 rounded-lg theme-btn-primary text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     Entrar Imediatamente como Avaliador
                   </button>
                 </div>
               )}
 
-              {/* Tabs Toggle (Hidden if 2FA is active) */}
+              {/* Tabs Toggle */}
               {!twoFactorRequired && (
-                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-6">
+                <div className="flex theme-card-muted p-1 rounded-xl mb-5">
                   <button
                     onClick={() => { setActiveTab('login'); setError(null); setSuccess(null); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       activeTab === 'login' 
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
-                        : 'text-gray-400 hover:text-white'
+                        ? 'theme-btn-primary shadow-sm' 
+                        : ''
                     }`}
+                    style={activeTab !== 'login' ? { color: 'var(--foreground-muted)' } : undefined}
                   >
                     Entrar (Login)
                   </button>
@@ -262,9 +264,10 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                     onClick={() => { setActiveTab('register'); setError(null); setSuccess(null); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       activeTab === 'register' 
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10' 
-                        : 'text-gray-400 hover:text-white'
+                        ? 'theme-btn-primary shadow-sm' 
+                        : ''
                     }`}
+                    style={activeTab !== 'register' ? { color: 'var(--foreground-muted)' } : undefined}
                   >
                     Cadastrar
                   </button>
@@ -273,13 +276,13 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
 
               {/* Status Feedbacks */}
               {error && (
-                <div className="mb-4 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-red-400 text-xs flex items-center gap-2 font-sans leading-relaxed animate-shake">
+                <div className="mb-4 p-3 rounded-lg border border-[#B91C1C]/30 bg-[#B91C1C]/10 text-[#B91C1C] text-xs flex items-center gap-2 font-sans leading-relaxed">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
               {success && (
-                <div className="mb-4 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs flex items-center gap-2 font-sans leading-relaxed">
+                <div className="mb-4 p-3 rounded-lg border border-[#2E6F40]/30 bg-[#2E6F40]/10 text-[#2E6F40] text-xs flex items-center gap-2 font-sans leading-relaxed">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                   <span>{success}</span>
                 </div>
@@ -288,70 +291,66 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
               {/* Interactive Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {twoFactorRequired ? (
-                  /* 2FA Code Form Input */
                   <div className="space-y-4">
-                    <p className="text-xs text-gray-400 leading-relaxed text-center font-sans">
-                      Enviamos um código de segurança de 6 dígitos para o e-mail <strong>{email}</strong>. Insira o código abaixo para prosseguir:
+                    <p className="text-xs leading-relaxed text-center font-sans" style={{ color: 'var(--foreground-muted)' }}>
+                      Enviamos um código de segurança de 6 dígitos para o e-mail <strong style={{ color: 'var(--foreground)' }}>{email}</strong>. Insira o código abaixo:
                     </p>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Código de Verificação</label>
+                      <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>Código de Verificação</label>
                       <div className="relative flex justify-center">
-                        <KeyRound className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                        <KeyRound className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                         <input 
                           type="text" 
                           required
                           maxLength={6}
                           value={twoFactorCode}
                           onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Digite os 6 dígitos"
-                          className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans text-center tracking-[10px] text-lg font-bold"
+                          placeholder="000000"
+                          className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 focus:outline-none transition-all font-mono text-center tracking-[8px] text-lg font-bold"
+                          style={{ color: 'var(--foreground)' }}
                         />
                       </div>
                     </div>
 
-                    {/* Master Code Hint for Evaluator */}
-                    <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 text-center font-sans space-y-1">
-                      <p className="font-semibold">💡 Para Avaliadores / Apresentação de TCC:</p>
-                      <p className="text-[10px] text-blue-200/80">
-                        O código mestre <strong className="text-white font-mono bg-blue-500/30 px-1.5 py-0.5 rounded">123456</strong> ou <strong className="text-white font-mono bg-blue-500/30 px-1.5 py-0.5 rounded">000000</strong> é aceito diretamente sem necessidade de consultar e-mail.
+                    <div className="p-3 rounded-lg theme-card-muted text-[11px] text-center font-sans space-y-1">
+                      <p className="font-semibold" style={{ color: 'var(--foreground)' }}>💡 Dica para Demonstração:</p>
+                      <p className="text-[10px]" style={{ color: 'var(--foreground-muted)' }}>
+                        O código mestre <strong className="font-mono px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--surface)', color: 'var(--primary)' }}>123456</strong> é aceito diretamente.
                       </p>
                       <button
                         type="button"
                         onClick={() => setTwoFactorCode('123456')}
-                        className="text-[10px] text-amber-300 underline font-semibold hover:text-amber-200 mt-1 inline-block cursor-pointer"
+                        className="text-[10px] underline font-semibold mt-1 inline-block cursor-pointer"
+                        style={{ color: 'var(--primary)' }}
                       >
                         Clique aqui para preencher 123456
                       </button>
                     </div>
                   </div>
                 ) : (
-                  /* Standard Login/Register Inputs */
                   <>
                     {activeTab === 'register' && (
                       <>
-                        {/* Perfil de Cadastro Toggle */}
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Tipo de Cadastro</label>
-                          <div className="flex bg-[#0a0a0c] p-1 rounded-xl border border-white/5 gap-1">
+                          <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>Tipo de Cadastro</label>
+                          <div className="flex theme-card-muted p-1 rounded-xl gap-1">
                             <button
                               type="button"
                               onClick={() => setRole('OPERATOR')}
                               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
-                                role === 'OPERATOR' 
-                                  ? 'bg-white/10 text-white border border-white/10' 
-                                  : 'text-gray-500 hover:text-gray-400'
+                                role === 'OPERATOR' ? 'theme-card shadow-sm' : ''
                               }`}
+                              style={{ color: role === 'OPERATOR' ? 'var(--foreground)' : 'var(--foreground-muted)' }}
                             >
-                              Operador Civil
+                              Operador / Engenheiro
                             </button>
                             <button
                               type="button"
                               onClick={() => setRole('USER')}
                               className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase ${
-                                role === 'USER' 
-                                  ? 'bg-white/10 text-white border border-white/10' 
-                                  : 'text-gray-500 hover:text-gray-400'
+                                role === 'USER' ? 'theme-card shadow-sm' : ''
                               }`}
+                              style={{ color: role === 'USER' ? 'var(--foreground)' : 'var(--foreground-muted)' }}
                             >
                               Morador (Alertas)
                             </button>
@@ -359,16 +358,17 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Nome Completo</label>
+                          <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>Nome Completo</label>
                           <div className="relative">
-                            <User className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <User className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                             <input 
                               type="text" 
                               required
                               value={name}
                               onChange={(e) => setName(e.target.value)}
-                              placeholder={role === 'OPERATOR' ? "Ex: Dr. Carlos Silva" : "Ex: Maria de Oliveira"}
-                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                              placeholder={role === 'OPERATOR' ? "Ex: Eng. Carlos Silva" : "Ex: Maria de Oliveira"}
+                              className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none transition-all font-sans"
+                              style={{ color: 'var(--foreground)' }}
                             />
                           </div>
                         </div>
@@ -376,16 +376,17 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">E-mail</label>
+                      <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>E-mail Corporativo</label>
                       <div className="relative">
-                        <Mail className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                        <Mail className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                         <input 
                           type="email" 
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder={role === 'OPERATOR' ? "seu.nome@geoshield.gov" : "seu.email@provedor.com"}
-                          className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                          placeholder="seu.nome@landslide.com.br"
+                          className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none transition-all font-sans"
+                          style={{ color: 'var(--foreground)' }}
                         />
                       </div>
                     </div>
@@ -393,35 +394,37 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                     {activeTab === 'register' && (
                       <>
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                          <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
                             WhatsApp (DDD + Número) {role === 'USER' ? '*' : '(Opcional)'}
                           </label>
                           <div className="relative">
-                            <Phone className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <Phone className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                             <input 
                               type="tel" 
                               required={role === 'USER'}
                               value={phoneNumber}
                               onChange={(e) => setPhoneNumber(e.target.value)}
                               placeholder="Ex: 5524998887766"
-                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                              className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none transition-all font-sans"
+                              style={{ color: 'var(--foreground)' }}
                             />
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                            CEP de Residência {role === 'USER' ? '*' : '(Opcional)'}
+                          <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>
+                            CEP de Monitoramento {role === 'USER' ? '*' : '(Opcional)'}
                           </label>
                           <div className="relative">
-                            <Home className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                            <Home className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                             <input 
                               type="text" 
                               required={role === 'USER'}
                               value={cep}
                               onChange={(e) => setCep(e.target.value)}
                               placeholder="Ex: 25680-000"
-                              className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                              className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none transition-all font-sans"
+                              style={{ color: 'var(--foreground)' }}
                             />
                           </div>
                         </div>
@@ -429,30 +432,32 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                     )}
 
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Senha de Segurança</label>
+                      <label className="text-[10px] uppercase font-bold tracking-wider" style={{ color: 'var(--foreground-muted)' }}>Senha de Segurança</label>
                       <div className="relative">
-                        <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-500" />
+                        <Lock className="absolute left-3.5 top-3 w-4 h-4" style={{ color: 'var(--foreground-muted)' }} />
                         <input 
                           type="password" 
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-[#0a0a0c] border border-white/5 focus:border-blue-500/40 rounded-xl py-2.5 pl-11 pr-4 text-xs text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/20 transition-all font-sans"
+                          className="w-full theme-card-muted rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none transition-all font-sans"
+                          style={{ color: 'var(--foreground)' }}
                         />
                       </div>
                     </div>
 
                     {activeTab === 'login' && (
                       <div className="flex justify-between items-center text-[10px] pt-1">
-                        <span className="text-gray-500">Credencial de teste:</span>
+                        <span style={{ color: 'var(--foreground-muted)' }}>Credencial de demonstração:</span>
                         <button
                           type="button"
                           onClick={() => {
                             setEmail('admin@defesacivil.gov.br');
                             setPassword('admin123');
                           }}
-                          className="text-blue-400 hover:text-blue-300 underline cursor-pointer"
+                          className="underline font-semibold cursor-pointer"
+                          style={{ color: 'var(--primary)' }}
                         >
                           Preencher Operador Padrão
                         </button>
@@ -465,7 +470,7 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/10 cursor-pointer disabled:opacity-50"
+                  className="w-full mt-2 theme-btn-primary font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -480,28 +485,27 @@ export function AuthModal({ isOpen, onClose, message }: AuthModalProps) {
                   )}
                 </button>
 
-                {/* Voltar ao Login option for 2FA */}
                 {twoFactorRequired && (
                   <button
                     type="button"
                     onClick={handleReset}
-                    className="w-full text-center text-[10px] text-gray-500 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
+                    className="w-full text-center text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
+                    style={{ color: 'var(--foreground-muted)' }}
                   >
                     Voltar para o Login
                   </button>
                 )}
               </form>
 
-            {/* Informative Footer */}
-            <div className="mt-6 border-t border-white/5 pt-4 text-center">
-              <span className="text-[10px] text-gray-500 leading-normal block">
-                Acesso livre para consulta pública básica. Cadastro de moradores permite receber alertas funcionais de deslizamento direto via WhatsApp para o seu CEP residencial no TCC.
-              </span>
+              <div className="mt-6 border-t pt-4 text-center" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-[10px] leading-normal block" style={{ color: 'var(--foreground-muted)' }}>
+                  Plataforma LandSlide de Monitoramento Geotécnico. O cadastro de moradores permite receber alertas preventivos direto via WhatsApp para o CEP monitorado.
+                </span>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </div>
-    )}
-  </AnimatePresence>
-);
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
 }

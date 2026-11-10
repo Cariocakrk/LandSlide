@@ -11,14 +11,15 @@ export async function GET(req: NextRequest) {
   for (let i = 0; i < 20; i++) {
     const riskVal = Number((20 + i * 3.5).toFixed(1));
     const statusColor = i > 12 ? 'Vermelho' : i > 8 ? 'Laranja' : i > 4 ? 'Amarelo' : 'Verde';
+    const vib = Number(Math.abs(0.8 + Math.sin(i) * 1.4).toFixed(2));
     items.push({
       id: 'hist-' + i,
       sensorId: 'EST-GEO-' + ((i % 5) + 1),
-      soilMoisture: Number((35 + Math.sin(i) * 20).toFixed(1)),
-      terrainInclination: Number((18 + Math.cos(i) * 12).toFixed(1)),
+      soilMoisture: Number((42 + Math.abs(Math.sin(i)) * 38).toFixed(1)),
+      terrainInclination: Number((22 + Math.cos(i) * 8).toFixed(1)),
       rainVolume: Number((15 + i * 4).toFixed(1)),
-      groundVibration: Number((0.5 + Math.sin(i) * 2).toFixed(1)),
-      vibration: Number((0.5 + Math.sin(i) * 2).toFixed(1)),
+      groundVibration: vib,
+      vibration: vib,
       risk: riskVal,
       riskLevel: riskVal,
       riskScore: riskVal,

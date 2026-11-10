@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { apiFetch } from '@/lib/api';
 import { socket } from '@/lib/socket';
-import { Terminal, ShieldAlert, ChevronDown, ChevronUp, BellRing, Smartphone } from 'lucide-react';
+import { Terminal, ChevronDown, ChevronUp, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface DispatchLog {
@@ -24,13 +24,12 @@ export function LiveAlertLogs() {
   const feedEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Carregar histórico inicial do banco SQLite
     const loadInitialDispatches = async () => {
       try {
         const res = await apiFetch('/api/alerts');
         const data = await res.json();
         if (Array.isArray(data)) {
-          setLogs(data.reverse()); // Ordena para os mais recentes no final (estilo terminal)
+          setLogs(data.reverse());
         }
       } catch (err) {
         console.error("Failed to load initial dispatch logs:", err);
@@ -39,16 +38,13 @@ export function LiveAlertLogs() {
 
     loadInitialDispatches();
 
-    // 2. Ouvir disparos de alerta em tempo real via WebSocket
     socket.on('alertDispatched', (newLog: DispatchLog) => {
       setLogs((prev) => {
         const next = [...prev, newLog];
-        // Limitar logs exibidos no terminal a 25 registros
         if (next.length > 25) return next.slice(next.length - 25);
         return next;
       });
 
-      // Tocar som de bipe de terminal ao receber novo log
       try {
         const audio = new Audio('/beep.mp3');
         audio.volume = 0.5;
@@ -66,7 +62,6 @@ export function LiveAlertLogs() {
   }, [isOpen]);
 
   useEffect(() => {
-    // Rola o terminal para o fim ao receber novos logs
     if (feedEndRef.current) {
       feedEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
@@ -78,21 +73,22 @@ export function LiveAlertLogs() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-lg w-full px-4 md:px-0">
+    <div className="fixed bottom-6 right-6 z-50 max-w-lg w-full px-4 md:px-0 pointer-events-none">
       {/* Floating Toggle Badge Button */}
-      <div className="flex justify-end mb-2">
+      <div className="flex justify-end mb-2 pointer-events-auto">
         <button 
           onClick={clearNotifications}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-full border shadow-2xl font-mono text-xs transition-all duration-300 active:scale-95 ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-mono text-xs transition-all duration-300 active:scale-95 cursor-pointer ${
             newCount > 0 
-              ? 'bg-red-600/90 text-white border-red-500 hover:bg-red-500 animate-pulse shadow-red-500/20' 
-              : 'bg-black/85 backdrop-blur-md text-emerald-400 border-emerald-500/30 hover:border-emerald-500/60 hover:bg-black/90'
+              ? 'bg-[#B91C1C] text-white animate-pulse' 
+              : 'theme-card'
           }`}
+          style={newCount === 0 ? { color: 'var(--foreground)' } : undefined}
         >
-          <Terminal className="w-4 h-4" />
-          <span>Console de Disparo</span>
+          <Terminal className="w-4 h-4" style={newCount === 0 ? { color: 'var(--primary)' } : undefined} />
+          <span className="font-semibold">Console de Disparo</span>
           {newCount > 0 && (
-            <span className="flex items-center justify-center bg-white text-red-600 font-bold w-4 h-4 rounded-full text-[10px]">
+            <span className="flex items-center justify-center bg-white text-[#B91C1C] font-bold w-4 h-4 rounded-full text-[10px]">
               {newCount}
             </span>
           )}
@@ -107,46 +103,46 @@ export function LiveAlertLogs() {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="border border-[#ffffff15] bg-[#030303ec] backdrop-blur-xl rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.8)] overflow-hidden h-72 flex flex-col"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="theme-card rounded-2xl shadow-2xl overflow-hidden h-72 flex flex-col pointer-events-auto"
           >
             {/* Header bar */}
-            <div className="bg-white/5 px-4 py-3 border-b border-white/5 flex items-center justify-between font-mono text-xs text-gray-400">
+            <div className="theme-card-muted px-4 py-3 border-b flex items-center justify-between font-mono text-xs" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                <span className="text-white font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-blue-400" /> WhatsApp Evacuation Dispatcher
+                <div className="w-2 h-2 rounded-full bg-[#2E6F40]" />
+                <span className="font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--foreground)' }}>
+                  <Smartphone className="w-3.5 h-3.5" style={{ color: 'var(--primary)' }} /> Central de Disparo WhatsApp
                 </span>
               </div>
-              <span className="text-gray-600">LIVE FEED</span>
+              <span className="text-[10px]" style={{ color: 'var(--foreground-muted)' }}>TEMPO REAL</span>
             </div>
 
             {/* Logs Area */}
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-3 scrollbar-thin">
+            <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-3">
               {logs.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-600 text-center uppercase tracking-widest gap-2">
-                  <Terminal className="w-8 h-8 opacity-20" />
+                <div className="h-full flex flex-col items-center justify-center text-center uppercase tracking-widest gap-2" style={{ color: 'var(--foreground-muted)' }}>
+                  <Terminal className="w-7 h-7 opacity-30" />
                   Aguardando emissão de alertas comunitários...
                 </div>
               ) : (
                 logs.map((log, idx) => (
-                  <div key={log.id || idx} className="border-l-2 border-emerald-500/50 pl-3 py-1 space-y-1 hover:border-emerald-400 transition-colors">
-                    <div className="flex flex-wrap items-center justify-between text-gray-500 text-[10px]">
+                  <div key={log.id || idx} className="border-l-2 border-[#2E6F40] pl-3 py-1 space-y-1 transition-colors">
+                    <div className="flex flex-wrap items-center justify-between text-[10px]" style={{ color: 'var(--foreground-muted)' }}>
                       <span>
                         [{log.createdAt ? `${new Date(log.createdAt).toLocaleDateString()} - ${new Date(log.createdAt).toLocaleTimeString()}` : 'Tempo Real'}]
                       </span>
-                      <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase tracking-wide">
+                      <span className="text-[#2E6F40] bg-[#2E6F40]/10 px-2 py-0.5 rounded border border-[#2E6F40]/20 font-bold uppercase tracking-wide">
                         {log.status || 'EMITIDO'} ({log.channel || 'WhatsApp'})
                       </span>
                     </div>
-                    <div className="text-gray-300">
-                      Protocolo: <span className="text-blue-400 font-bold">{log.protocolCode || (log as any).sensorId || 'DEF-AUTO'}</span> | Setor: <span className="text-yellow-500 font-bold">{log.cep || 'Região Monitorada'}</span>
+                    <div style={{ color: 'var(--foreground)' }}>
+                      Protocolo: <span className="font-bold" style={{ color: 'var(--primary)' }}>{log.protocolCode || (log as any).sensorId || 'DEF-AUTO'}</span> | Setor: <span className="font-bold">{log.cep || 'Região Monitorada'}</span>
                     </div>
-                    <p className="text-emerald-400/90 whitespace-pre-wrap leading-normal font-sans bg-black/40 p-2 rounded border border-white/5">
+                    <p className="whitespace-pre-wrap leading-normal font-sans theme-card-muted p-2.5 rounded-lg text-xs" style={{ color: 'var(--foreground)' }}>
                       {log.message || 'Alerta estrutural emitido para a região.'}
                     </p>
-                    <div className="text-[10px] text-gray-500 italic">
-                      📢 Disparo automático enviado para aproximadamente <strong className="text-white font-bold">{log.numResidents || 150}</strong> moradores do quadrante de encosta.
+                    <div className="text-[10px] italic" style={{ color: 'var(--foreground-muted)' }}>
+                      📢 Disparo automático enviado para aproximadamente <strong className="font-bold" style={{ color: 'var(--foreground)' }}>{log.numResidents || 150}</strong> moradores do quadrante de encosta.
                     </div>
                   </div>
                 ))
