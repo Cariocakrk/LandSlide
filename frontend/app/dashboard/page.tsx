@@ -136,7 +136,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-end">
-          <div className="theme-card px-4 py-2.5 rounded-xl flex items-center gap-2.5">
+          <div className="theme-card px-4 py-2.5 rounded-xl flex items-center gap-2.5 shadow-sm">
             <div className={`w-2.5 h-2.5 rounded-full ${
               displayRiskCode === 'R4' ? 'bg-[#B91C1C]' :
               displayRiskCode === 'R3' ? 'bg-[#C85A17]' :
@@ -150,9 +150,68 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Barra de Risco Segmentada Normativa (R1 a R4 — ABNT NBR 11682 / CPRM) */}
+      <div className="theme-card rounded-2xl p-4 relative overflow-hidden transition-all duration-300 hover:border-[var(--border-strong)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--primary)]">
+              Régua Normativa de Suscetibilidade (CPRM / IPT)
+            </span>
+            <span className="text-xs text-[var(--foreground-muted)] hidden md:inline">
+              • Posição em tempo real do setor monitorado
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-mono">
+            <span className="text-[var(--foreground-muted)]">
+              Índice Atual: <strong className="text-[var(--foreground)]">{displayRisk}%</strong>
+            </span>
+            <span className="text-[var(--border-strong)]">|</span>
+            <span className="text-[var(--foreground-muted)]">
+              Projeção 24h: <strong className={displayFutureRisk >= 70 ? 'text-[#B91C1C]' : 'text-[var(--primary)]'}>{displayFutureRisk}%</strong>
+            </span>
+          </div>
+        </div>
+
+        <div className="relative pt-1 pb-1">
+          <div className="grid grid-cols-4 gap-1.5 h-3 rounded-full overflow-hidden p-0.5 bg-[var(--surface-muted)] border border-[var(--border)]">
+            <div className={`rounded-l-full transition-all duration-500 ${displayRisk <= 25 ? 'bg-[#2E6F40] opacity-100' : 'bg-[#2E6F40]/45'}`} />
+            <div className={`transition-all duration-500 ${displayRisk > 25 && displayRisk <= 50 ? 'bg-[#B47B1C] opacity-100' : 'bg-[#B47B1C]/45'}`} />
+            <div className={`transition-all duration-500 ${displayRisk > 50 && displayRisk <= 75 ? 'bg-[#C85A17] opacity-100' : 'bg-[#C85A17]/45'}`} />
+            <div className={`rounded-r-full transition-all duration-500 ${displayRisk > 75 ? 'bg-[#B91C1C] opacity-100' : 'bg-[#B91C1C]/45'}`} />
+          </div>
+
+          {/* Marcador deslizante da leitura atual */}
+          <div
+            className="absolute top-0 -translate-x-1/2 transition-all duration-700 ease-out pointer-events-none flex flex-col items-center"
+            style={{ left: `${Math.min(98, Math.max(2, displayRisk))}%` }}
+          >
+            <div className="w-4 h-4 rounded-full bg-[var(--surface)] border-[3px] border-[var(--foreground)] shadow-md" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2.5 text-[11px]">
+          <div className={`flex items-center justify-between px-2.5 py-1 rounded-lg border transition-all ${displayRiskCode === 'R1' ? 'bg-[#2E6F40]/12 border-[#2E6F40]/40 text-[#2E6F40] dark:text-[#52B788] font-bold' : 'border-transparent text-[var(--foreground-muted)]'}`}>
+            <span>R1 • Baixo / Estável</span>
+            <span className="font-mono text-[10px]">0–25%</span>
+          </div>
+          <div className={`flex items-center justify-between px-2.5 py-1 rounded-lg border transition-all ${displayRiskCode === 'R2' ? 'bg-[#B47B1C]/12 border-[#B47B1C]/40 text-[#B47B1C] font-bold' : 'border-transparent text-[var(--foreground-muted)]'}`}>
+            <span>R2 • Médio / Atenção</span>
+            <span className="font-mono text-[10px]">26–50%</span>
+          </div>
+          <div className={`flex items-center justify-between px-2.5 py-1 rounded-lg border transition-all ${displayRiskCode === 'R3' ? 'bg-[#C85A17]/12 border-[#C85A17]/40 text-[#C85A17] font-bold' : 'border-transparent text-[var(--foreground-muted)]'}`}>
+            <span>R3 • Alto / Alerta</span>
+            <span className="font-mono text-[10px]">51–75%</span>
+          </div>
+          <div className={`flex items-center justify-between px-2.5 py-1 rounded-lg border transition-all ${displayRiskCode === 'R4' ? 'bg-[#B91C1C]/12 border-[#B91C1C]/40 text-[#B91C1C] font-bold' : 'border-transparent text-[var(--foreground-muted)]'}`}>
+            <span>R4 • Crítico</span>
+            <span className="font-mono text-[10px]">76–100%</span>
+          </div>
+        </div>
+      </div>
+
       {/* Bloco Principal: Indicador de Risco + 6 Cards de Métricas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
+        <div className="lg:col-span-1 theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-lg">
           <PrecisionGauge
             value={displayRisk}
             riskLevelCode={displayRiskCode}
@@ -415,8 +474,32 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SeismographMonitor currentVibration={displayVibration} />
 
-        <div className="theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3.5 mb-3">
+        <div className="theme-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-lg group">
+          {/* Textura Topográfica de Fundo no Card de Parecer */}
+          <svg
+            viewBox="0 0 420 220"
+            fill="none"
+            className="pointer-events-none absolute right-0 bottom-0 w-64 h-40 opacity-20 dark:opacity-15 group-hover:opacity-40 transition-opacity duration-500"
+          >
+            <path
+              d="M40 220 C 110 150, 210 190, 310 110 C 360 70, 395 85, 430 40"
+              stroke="var(--mountain-stroke)"
+              strokeWidth="1.2"
+              strokeDasharray="4 4"
+            />
+            <path
+              d="M80 230 C 150 170, 240 205, 335 135 C 380 100, 405 110, 435 75"
+              stroke="var(--mountain-stroke)"
+              strokeWidth="1"
+            />
+            <path
+              d="M130 235 C 190 190, 270 215, 360 160 C 395 135, 415 140, 440 115"
+              stroke="var(--mountain-stroke)"
+              strokeWidth="0.9"
+            />
+          </svg>
+
+          <div className="relative z-10 flex items-center justify-between border-b border-[var(--border)] pb-3.5 mb-3">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
                 <FileText className="w-4 h-4" />
@@ -439,7 +522,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="relative z-10 space-y-3">
             <div className="grid grid-cols-3 gap-2.5 theme-card-muted rounded-xl p-3 text-xs">
               <div>
                 <span className="text-[10px] text-[var(--foreground-muted)] uppercase block">Setor Analisado</span>
@@ -473,7 +556,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-3">
+          <div className="relative z-10 flex flex-wrap items-center justify-between text-[11px] text-[var(--foreground-muted)] pt-3 border-t border-[var(--border)] mt-3">
             <div className="flex items-center gap-1.5 text-[#2E6F40] dark:text-[#52B788] font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Conformidade Técnica ABNT NBR 11682</span>
@@ -507,31 +590,71 @@ function MetricCard({
   capacityPercent = 50,
   barColor = "bg-[var(--primary)]"
 }: MetricCardProps) {
+  const clampedCap = Math.min(100, Math.max(0, capacityPercent));
+
   return (
-    <div className="theme-card rounded-2xl p-4 flex flex-col justify-between hover:border-[var(--primary)] transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-[var(--foreground-muted)] truncate max-w-[140px]">
+    <div className="group relative overflow-hidden theme-card rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-lg">
+      {/* Filete Superior de Relevo que acende no Hover */}
+      <div className={`absolute inset-x-0 top-0 h-[3px] ${barColor} opacity-45 group-hover:opacity-100 transition-opacity duration-300`} />
+
+      {/* Textura de Curvas de Nível (Isolinhas Topográficas) no Fundo do Card */}
+      <svg
+        viewBox="0 0 220 130"
+        fill="none"
+        className="pointer-events-none absolute -right-3 -bottom-2 w-40 h-28 opacity-20 dark:opacity-15 group-hover:opacity-45 group-hover:scale-105 transition-all duration-500"
+      >
+        <path
+          d="M15 130 C 55 85, 115 105, 165 55 C 190 30, 205 38, 225 12"
+          stroke="var(--mountain-stroke)"
+          strokeWidth="1.2"
+          strokeDasharray="3 3"
+        />
+        <path
+          d="M45 135 C 85 98, 135 112, 180 72 C 202 52, 212 58, 230 35"
+          stroke="var(--mountain-stroke)"
+          strokeWidth="1"
+        />
+        <path
+          d="M80 140 C 115 112, 155 120, 195 90 C 210 76, 218 80, 232 62"
+          stroke="var(--mountain-stroke)"
+          strokeWidth="0.85"
+        />
+      </svg>
+
+      <div className="relative z-10 flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-[var(--foreground-muted)] group-hover:text-[var(--foreground)] transition-colors truncate max-w-[145px]">
           {title}
         </span>
-        <div className={`p-1.5 rounded-lg bg-[var(--surface-muted)] ${color}`}>
+        <div className={`p-2 rounded-xl bg-[var(--surface-muted)] border border-[var(--border)] group-hover:border-[var(--primary)]/40 transition-all ${color}`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
 
-      <div className="my-1.5">
+      <div className="relative z-10 my-1.5">
         <div className="text-2xl md:text-3xl font-extrabold font-mono text-[var(--foreground)] tracking-tight flex items-baseline gap-1.5">
           {value !== undefined && value !== null ? value : '-'}
         </div>
         <span className="text-[11px] text-[var(--foreground-muted)]">{unit}</span>
       </div>
 
-      <div className="pt-2.5 border-t border-[var(--border)] flex items-center justify-between gap-2 mt-1">
-        <span className="text-[9px] font-semibold text-[var(--foreground-muted)] uppercase tracking-wider">{tag}</span>
-        <div className="flex-1 h-1.5 bg-[var(--surface-muted)] rounded-full overflow-hidden max-w-[90px]">
+      <div className="relative z-10 pt-2.5 border-t border-[var(--border)] space-y-1.5 mt-1">
+        <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
+          <span>{tag}</span>
+          <span className="font-mono text-[10px] text-[var(--foreground)]">{clampedCap}%</span>
+        </div>
+        {/* Barra Segmentada de Capacidade / Escala */}
+        <div className="relative h-2 bg-[var(--surface-muted)] rounded-full overflow-hidden border border-[var(--border)]/60">
           <div 
             className={`h-full ${barColor} rounded-full transition-all duration-700`}
-            style={{ width: `${Math.min(100, Math.max(0, capacityPercent))}%` }}
+            style={{ width: `${clampedCap}%` }}
           />
+          {/* Divisórias de quartis (25% / 50% / 75%) */}
+          <div className="pointer-events-none absolute inset-0 grid grid-cols-4">
+            <div className="border-r border-[var(--surface)]/60" />
+            <div className="border-r border-[var(--surface)]/60" />
+            <div className="border-r border-[var(--surface)]/60" />
+            <div />
+          </div>
         </div>
       </div>
     </div>

@@ -92,10 +92,37 @@ export function PrecisionGauge({
   const needleTailX = cx - 16 * Math.cos(toRad(needleAngle));
   const needleTailY = cy - 16 * Math.sin(toRad(needleAngle));
 
+  const stages = [
+    { code: 'R1', label: 'Estável', range: '0-25%', color: '#2E6F40', active: riskLevelCode === 'R1' },
+    { code: 'R2', label: 'Atenção', range: '26-50%', color: '#B47B1C', active: riskLevelCode === 'R2' },
+    { code: 'R3', label: 'Alerta', range: '51-75%', color: '#C85A17', active: riskLevelCode === 'R3' },
+    { code: 'R4', label: 'Crítico', range: '76-100%', color: '#B91C1C', active: riskLevelCode === 'R4' },
+  ];
+
   return (
     <div className="flex flex-col items-center justify-between w-full h-full relative font-sans select-none">
+      {/* Textura Sutil de Curvas de Nível no Fundo do Card */}
+      <svg
+        viewBox="0 0 320 320"
+        fill="none"
+        className="pointer-events-none absolute inset-0 w-full h-full object-cover opacity-20 dark:opacity-15"
+      >
+        <path
+          d="M-20 260 C 40 220, 110 280, 180 230 C 240 190, 290 210, 340 170"
+          stroke="var(--mountain-stroke)"
+          strokeWidth="1.2"
+          strokeDasharray="4 4"
+        />
+        <path
+          d="M-20 290 C 50 250, 125 305, 195 255 C 255 215, 300 235, 340 195"
+          stroke="var(--mountain-stroke)"
+          strokeWidth="1"
+        />
+        <circle cx="150" cy="145" r="122" stroke="var(--mountain-stroke)" strokeWidth="0.7" strokeDasharray="2 5" />
+      </svg>
+
       {/* Top Header Card */}
-      <div className="w-full flex items-center justify-between border-b border-[var(--border)] pb-3">
+      <div className="relative z-10 w-full flex items-center justify-between border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: gaugeColor }} />
           <span className="text-xs font-semibold text-[var(--foreground)]">
@@ -115,7 +142,7 @@ export function PrecisionGauge({
       </div>
 
       {/* SVG Instrument Dial */}
-      <div className="relative w-full max-w-[265px] aspect-square flex items-center justify-center my-1">
+      <div className="relative z-10 w-full max-w-[255px] aspect-square flex items-center justify-center my-0.5">
         <svg viewBox="0 0 300 290" className="w-full h-full overflow-visible">
           {/* Faixas de zonas do arco interno (CPRM) */}
           <path d={createArc(150, 234, 98)} fill="none" stroke="#2E6F40" strokeWidth="2.5" strokeOpacity="0.35" />
@@ -200,8 +227,46 @@ export function PrecisionGauge({
         </div>
       </div>
 
+      {/* Barra de Risco Segmentada CPRM (R1 a R4) */}
+      <div className="relative z-10 w-full grid grid-cols-4 gap-1.5 my-2">
+        {stages.map((st) => (
+          <div
+            key={st.code}
+            className={`rounded-lg px-2 py-1.5 border text-center transition-all duration-300 ${
+              st.active
+                ? 'shadow-sm scale-[1.03]'
+                : 'opacity-55 bg-[var(--surface-muted)] border-[var(--border)]'
+            }`}
+            style={
+              st.active
+                ? {
+                    backgroundColor: `${st.color}18`,
+                    borderColor: st.color,
+                  }
+                : undefined
+            }
+          >
+            <div className="flex items-center justify-center gap-1">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: st.color }}
+              />
+              <span
+                className="text-[10px] font-extrabold font-mono"
+                style={{ color: st.active ? st.color : 'var(--foreground)' }}
+              >
+                {st.code}
+              </span>
+            </div>
+            <div className="text-[9px] text-[var(--foreground-muted)] font-medium truncate">
+              {st.label}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Rodapé Geotécnico com Fator de Segurança */}
-      <div className="w-full theme-card-muted rounded-xl p-3 flex items-center justify-between mt-2">
+      <div className="relative z-10 w-full theme-card-muted rounded-xl p-3 flex items-center justify-between mt-1">
         <div className="flex flex-col">
           <span className="text-[10px] font-medium text-[var(--foreground-muted)]">Estabilidade Mohr-Coulomb</span>
           <div className="flex items-center gap-1.5 mt-0.5">
